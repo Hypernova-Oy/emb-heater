@@ -2,7 +2,7 @@
 
 case "$1" in
     configure)
-	adduser --system --no-create-home --disabled-password heater
+	adduser --system --home /var/lib/heater --disabled-password heater
 	;;
     abort-upgrade|abort-remove|abort-deconfigure)
 	;;
