@@ -2,7 +2,7 @@
 
 case "$1" in
     configure)
-	adduser --system --home /var/lib/heater --disabled-password heater
+	systemctl start libemb-heater-perl
 	;;
     abort-upgrade|abort-remove|abort-deconfigure)
 	;;

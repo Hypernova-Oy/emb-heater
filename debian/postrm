@@ -2,15 +2,11 @@
 
 case "$1" in
     purge)
-	USERNAME=heater
-	if [ -x "$(command -v deluser)" ]; then
-	    deluser --quiet --system --remove-home $USERNAME > /dev/null || true
-	else
-	    echo >&2 "not removing $USERNAME system account because deluser command was not found"
-	fi
+	systemctl stop libemb-heater-perl
 	;;
 
     remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+	systemctl stop libemb-heater-perl
 	;;
 
     *)
