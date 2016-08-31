@@ -1,0 +1,15 @@
+#!/bin/bash
+
+case "$1" in
+    configure)
+	adduser --system --no-create-home --disabled-password heater
+	;;
+    abort-upgrade|abort-remove|abort-deconfigure)
+	;;
+    *)
+        echo "postinst called with unknown argument \`$1'" >&2
+	exit 1
+	;;
+esac
+
+exit 0

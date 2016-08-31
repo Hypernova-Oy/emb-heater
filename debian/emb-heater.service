@@ -3,7 +3,7 @@ Description=Warming daemon
 
 [Service]
 Type=idle
-User=root
+User=heater
 WorkingDirectory=/usr/share/perl5
 ExecStart=/usr/bin/perl Warmer.pm
 
