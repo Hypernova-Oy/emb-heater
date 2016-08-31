@@ -3,7 +3,7 @@ use Module::Build;
 
 my $build = Module::Build->new
     (
-     module_name => 'emb-heater',
+     module_name => 'Warmer',
      dist_author => 'Joonas Kylmälä <joonas.kylmala@jns.fi>',
      dist_abstract => 'Turns on warming pad if it is too cold',
 
@@ -18,7 +18,7 @@ my $build = Module::Build->new
 	 'HiPi::Interface::DS18X20' => '0.22',
 	 'Config::Simple' => '4',
 	 'Sys::Syslog' => '0.33',
-	 'DoubleLatchRelay' => '0.02',
+	 'Relay::DoubleLatch' => '0.02',
      }
 
     );
