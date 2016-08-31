@@ -19,6 +19,8 @@
 
 package Warmer;
 
+our $VERSION = "0.01";
+
 use Modern::Perl;
 use Config::Simple;
 use HiPi::Interface::DS18X20;
@@ -27,10 +29,10 @@ use Sys::Syslog qw(:standard :macros);
 use GPIO;
 use DoubleLatchRelay;
 
-# TODO: Change these values when schematic is updated
+# GPIO pins from emb-toveri schematics
 use constant {
-    SWITCH_ON_RELAY_GPIO => 16,
-    SWITCH_ON_RELAY_GPIO => 18,
+    SWITCH_ON_RELAY_GPIO => 23,
+    SWITCH_ON_RELAY_GPIO => 24,
 };
 
 sub new {

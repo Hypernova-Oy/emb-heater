@@ -1,0 +1,13 @@
+[Unit]
+Description=Warming daemon
+
+[Service]
+Type=idle
+User=root
+WorkingDirectory=/usr/share/perl5
+ExecStart=/usr/bin/perl Warmer.pm
+
+RestartSec=5s
+Restart=always
+
+PrivateTmp=yes
