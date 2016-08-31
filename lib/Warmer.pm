@@ -56,7 +56,7 @@ sub new {
 
     $self->{tempSensor} = HiPi::Interface::DS18X20->new(
 	id         => getTemperatureSensorID(),
-	correction => -4000,
+	correction => -100,
 	divider    => 1000,
 	);
 
