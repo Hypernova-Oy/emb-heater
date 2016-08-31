@@ -32,7 +32,7 @@ use Relay::DoubleLatch;
 # GPIO pins from emb-toveri schematics
 use constant {
     SWITCH_ON_RELAY_GPIO => 23,
-    SWITCH_ON_RELAY_GPIO => 24,
+    SWITCH_OFF_RELAY_GPIO => 24,
 };
 
 sub new {
@@ -155,7 +155,7 @@ sub main {
     my $targetTemp = getConfig()->param('TargetTemperature');
 
     my $warmer = Warmer->new(SWITCH_ON_RELAY_GPIO,
-			     SWITCH_ON_RELAY_GPIO,
+			     SWITCH_OFF_RELAY_GPIO,
 			     $activationTemp,
 			     $targetTemp);
 
