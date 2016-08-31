@@ -40,7 +40,8 @@ sub new {
 	$switchOnRelayGPIO,
 	$switchOffRelayGPIO,
 	$activationTemp,
-	$targetTemp) = @_;
+	$targetTemp,
+	$tempCorrection) = @_;
 
     my $self = {};
 
@@ -56,7 +57,7 @@ sub new {
 
     $self->{tempSensor} = HiPi::Interface::DS18X20->new(
 	id         => getTemperatureSensorID(),
-	correction => -100,
+	correction => $tempCorrection,
 	divider    => 1000,
 	);
 
@@ -132,8 +133,11 @@ sub getConfig {
 }
 
 sub isConfigValid() {
-    my @params = ("ActivationTemperature",
-		  "TargetTemperature");
+    my @params = (
+	"ActivationTemperature",
+	"TargetTemperature",
+	"TemperatureCorrection",
+	);
 
     foreach my $param (@params) {
 	if (!getConfig()->param($param)) {
@@ -153,11 +157,13 @@ sub main {
 
     my $activationTemp = getConfig()->param('ActivationTemperature');
     my $targetTemp = getConfig()->param('TargetTemperature');
+    my $tempCorrection = getConfig()->param('TemperatureCorrection');
 
     my $warmer = Warmer->new(SWITCH_ON_RELAY_GPIO,
 			     SWITCH_OFF_RELAY_GPIO,
 			     $activationTemp,
-			     $targetTemp);
+			     $targetTemp,
+			     $tempCorrection);
 
     $warmer->start();
 }
