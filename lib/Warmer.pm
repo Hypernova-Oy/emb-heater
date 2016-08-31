@@ -27,7 +27,7 @@ use HiPi::Interface::DS18X20;
 use Sys::Syslog qw(:standard :macros);
 
 use GPIO;
-use DoubleLatchRelay;
+use Relay::DoubleLatch;
 
 # GPIO pins from emb-toveri schematics
 use constant {
@@ -50,7 +50,7 @@ sub new {
     $self->{activationTemp} = $activationTemp;
     $self->{targetTemp} = $targetTemp;
 
-    $self->{warmerRelay} = DoubleLatchRelay->new(
+    $self->{warmerRelay} = Relay::DoubleLatch->new(
 	$self->{switchOnRelayGPIO},
 	$self->{switchOffRelayGPIO});
 
