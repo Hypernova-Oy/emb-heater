@@ -3,8 +3,9 @@ use Module::Build;
 
 my $build = Module::Build->new
     (
-     module_name => 'Warmer',
-     dist_author => 'Joonas Kylmälä <joonas.kylmala@jns.fi>',
+     module_name => 'Heater',
+     dist_author => ['Joonas Kylmälä <joonas.kylmala@jns.fi>',
+                     'Olli-Antti Kivilahti <olli-antti.kivilahti@jns.fi>'],
      dist_abstract => 'Turns on warming pad if it is too cold',
 
      build_requires => {
@@ -19,6 +20,7 @@ my $build = Module::Build->new
 	 'Config::Simple' => '4',
 	 'Sys::Syslog' => '0.33',
 	 'Relay::DoubleLatch' => '0.02',
+         'Test::MockModule' => '0.11',
      }
 
     );

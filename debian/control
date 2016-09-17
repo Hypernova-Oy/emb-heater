@@ -14,6 +14,7 @@ Depends: perl,
  libemb-relays-perl,
  libconfig-simple-perl,
  libhipi-perl,
+ libtest-mockmodule-perl,
 Standards-Version: 3.9.5
 Description: Turns on warming pad if it is too cold
  This is a daemon that turns on warming pad if it is

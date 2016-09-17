@@ -1,0 +1,44 @@
+#!/usr/bin/perl
+
+# Copyright 2016 Vaara-kirjastot
+#
+
+use Modern::Perl;
+use Carp;
+use Getopt::Long qw(:config no_ignore_case);
+
+use Heater;
+
+my $help;
+my $verbose = 0;
+
+GetOptions(
+    'h|help'                      => \$help,
+    'v|verbose:i'                 => \$verbose,
+);
+
+my $usage = <<USAGE;
+
+A temperature sensor controlled relay program.
+See default configs at /etc/emb-heater/daemon.conf
+
+
+  -v --verbose            Defaults to 0, minimal output.
+                          1, doesn't do anything either.
+
+  -h --help               This HELP!
+
+
+EXAMPLES:
+
+  heater
+
+USAGE
+
+if ($help) {
+  print $usage;
+  exit 0;
+}
+
+my $heater = Heater->new();
+$heater->start();

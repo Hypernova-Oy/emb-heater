@@ -1,0 +1,22 @@
+---
+- hosts: emb_rtttl
+
+  tasks:
+    - name: Figure out the application home directory relative to the playbook
+      shell: perl -e '$d = `pwd`."/../.."; while($d =~ s!/[^/]+?/\.\.!!g){}; print $d;'
+      register: app_dir
+
+    - name: Create system facts directory
+      file: path=/etc/ansible/facts.d \
+            owner=root \
+            group=root \
+            mode=0755 \
+            state=directory
+
+    - name: Save new system facts
+      template: src={{app_dir.stdout}}/ansible/config/emb-heater.fact \
+                dest=/etc/ansible/facts.d/emb-heater.fact \
+                mode=0644 \
+                owner=root \
+                group=root
+
