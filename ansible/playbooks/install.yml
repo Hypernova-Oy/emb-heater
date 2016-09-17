@@ -1,7 +1,7 @@
 ---
 - hosts: emb_heater
   vars:
-    emb_heater: "{{ansible_local.system.emb_heater}}"
+    emb_heater: "{{ansible_local.emb_heater.default}}"
 
   tasks:
     - name: Create system configuration files directory
