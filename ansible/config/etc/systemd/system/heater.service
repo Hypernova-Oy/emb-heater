@@ -1,0 +1,16 @@
+[Unit]
+Description=Heater relay control daemon
+
+[Service]
+Type=idle
+User=root
+WorkingDirectory={{emb_heater.app_dir}}
+ExecStart=/usr/bin/perl scripts/heater
+
+RestartSec=5s
+Restart=always
+
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

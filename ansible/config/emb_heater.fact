@@ -6,3 +6,5 @@
 app_dir={{app_dir.stdout}}
 template_dir={{app_dir.stdout}}/ansible/config
 conf_dir=/etc/emb-heater
+log_dir=/var/log/emb-heater
+systemd_service_dir=/etc/systemd/user

@@ -1,6 +1,10 @@
 #!/usr/bin/perl
 
+use Modern::Perl;
+
 use Test::More;
+
+use t::Examples;
 
 use Heater;
 
@@ -11,15 +15,7 @@ print "\n\n";
 print "Test begins...\n";
 
 
-my $heater = Heater->new({
-                 SwitchOnRelayBCMPin => 23,
-                 SwitchOffRelayBCMPin => 24,
-                 ActivationTemperature => -20,
-                 TargetTemperature => -17,
-                 TemperatureCorrection => 100,
-                 StatisticsWriteInterval => -1,
-             });
-
+my $heater = t::Examples::getHeater();
 
 
 subtest "Testing temperature sensor", \&tempSensor;

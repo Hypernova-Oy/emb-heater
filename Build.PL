@@ -20,7 +20,9 @@ my $build = Module::Build->new
 	 'Config::Simple' => '4',
 	 'Sys::Syslog' => '0.33',
 	 'Relay::DoubleLatch' => '0.02',
-         'Test::MockModule' => '0.11',
+     'Test::MockModule' => '0.11',
+     'Proc::PID::File' => '1.28',
+     'File::Temp' => '0.2304',
      }
 
     );

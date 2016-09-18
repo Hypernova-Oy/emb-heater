@@ -6,15 +6,27 @@
 use Modern::Perl;
 use Carp;
 use Getopt::Long qw(:config no_ignore_case);
+use POSIX();
+use Data::Dumper;
 
 use Heater;
 
 my $help;
 my $verbose = 0;
+my ($onPin,$offPin,$statisticsWriteInterval,$statisticsFile,
+    $activationTemp, $targetTemp, $tempCorrection);
+
 
 GetOptions(
     'h|help'                      => \$help,
     'v|verbose:i'                 => \$verbose,
+    'on:i'                        => \$onPin,
+    'off:i'                       => \$offPin,
+    's:i'                         => \$statisticsWriteInterval,
+    'sf:s'                        => \$statisticsFile,
+    'at:f'                        => \$activationTemp,
+    'tt:f'                        => \$targetTemp,
+    'tc:f'                        => \$tempCorrection,
 );
 
 my $usage = <<USAGE;
@@ -23,15 +35,42 @@ A temperature sensor controlled relay program.
 See default configs at /etc/emb-heater/daemon.conf
 
 
-  -v --verbose            Defaults to 0, minimal output.
-                          1, doesn't do anything either.
+  -v --verbose        Defaults to 0, minimal output.
+                      1, doesn't do anything either.
 
-  -h --help               This HELP!
+  -h --help           This HELP!
 
+  --on                The BCM pin turning the heater relay on
+
+  --off               The BCM pin turning the heater relay off
+
+  --s                 How often temperature readings are written to disk in ms?
+                      A negative value disables statistics gathering to a file.
+
+  --sf                Path to where the temperature readings are stored?
+
+  --at                At which degrees Celsius we start heating?
+                      Default -20
+
+  --tt                At which temperature we stop heating?
+                      This is to prevent the relay flickering when the
+                      temperature is close to the heating threshold.
+                      Default -17
+
+  --tc                Temperature correction in degrees Celsius.
+                      Default -0.1
+
+SIGNALS:
+
+Heater listens to some IPC signals you can use to get information about the running process
+
+SIGUSR1 - Dump the daemon object internals
+SIGUSR2 - Get a temperature reading
 
 EXAMPLES:
 
   heater
+  heater --on 23 --off 24 --s 60000 --sf /var/log/emb-heater/temperatures
 
 USAGE
 
@@ -40,5 +79,30 @@ if ($help) {
   exit 0;
 }
 
-my $heater = Heater->new();
+
+my $conf = Heater::makeConfig(
+              $onPin,$offPin,$activationTemp,$targetTemp,$tempCorrection,
+              $statisticsWriteInterval,$statisticsFile
+);
+my $heater = Heater->new($conf);
+
+##Introduce signal handlers
+sub gracefullyTerminate {
+  my ($signal) = @_;
+  print "Exiting through signal '$signal'\n";
+  exit(0); #Interrupt the handler to trigger graceful termination, including calling DESTROY on objects.
+}
+$SIG{USR1} = sub {
+  print Data::Dumper::Dumper($heater);
+};
+$SIG{USR2} = sub {
+  print $heater->getTemperatureSensor()->temperature()."\n";
+};
+$SIG{HUP} = sub {
+  gracefullyTerminate($_[0]);
+};
+$SIG{INT} = sub {
+  gracefullyTerminate($_[0]);
+};
+
 $heater->start();

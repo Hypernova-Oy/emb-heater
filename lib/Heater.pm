@@ -25,6 +25,9 @@ use Modern::Perl;
 use Config::Simple;
 use HiPi::Interface::DS18X20;
 use Sys::Syslog qw(:standard :macros);
+use Proc::PID::File;
+use Time::HiRes;
+use DateTime;
 
 use GPIO;
 use Relay::DoubleLatch;
@@ -39,6 +42,7 @@ sub new {
 
     my $self = mergeConfig($params);
     bless $self, $class;
+    $self->_checkPid();
 
     $self->{warmerRelay} = Relay::DoubleLatch->new(
         $self->{SwitchOnRelayBCMPin},
@@ -52,6 +56,8 @@ sub new {
         )
     );
 
+    $self->_prepareStatistics();
+    return $self;
 }
 
 sub getTemperatureSensorID {
@@ -70,16 +76,34 @@ sub getTemperatureSensorID {
 sub start {
     my ($self) = @_;
     $self->{warmingIsOn} = 0;
+    my $loopSleep = $self->_getMainLoopSleepDuration();
 
     while (1) {
-	if ($self->reachedActivationTemp() && !$self->{warmingIsOn}) {
-	    $self->turnWarmingOn();
-	} elsif ($self->{warmingIsOn} && $self->reachedTargetTemp()) {
-	    $self->turnWarmingOff();
-	}
 
-	sleep 1;
+        $self->writeStatistics();
+
+        if ($self->reachedActivationTemp() && !$self->{warmingIsOn}) {
+            $self->turnWarmingOn();
+        } elsif ($self->{warmingIsOn} && $self->reachedTargetTemp()) {
+            $self->turnWarmingOff();
+        }
+
+        Time::HiRes::usleep($loopSleep);
     }
+}
+
+=head2 _getMainLoopSleepDuration
+
+@RETURNS Int microseconds
+
+=cut
+
+sub _getMainLoopSleepDuration {
+    my ($self) = @_;
+    if ($self->{StatisticsWriteInterval}) {
+        return $self->{StatisticsWriteInterval}*1000;
+    }
+    return 5000*1000;
 }
 
 sub reachedTargetTemp {
@@ -142,6 +166,30 @@ sub exitWithError {
     say $error;
     exit(1);
 }
+
+
+sub _prepareStatistics {
+    my ($self) = @_;
+
+    open(my $STATFILE, '>>', $self->{StatisticsLogFile}) or die $!;
+    $self->{STATFILE} = $STATFILE;
+}
+
+sub writeStatistics {
+    my ($self, $msg) = @_;
+    my $STATFILE = $self->{STATFILE};
+
+    if ($msg) {
+        print $STATFILE "$msg\n";
+        return $self;
+    }
+    
+    my $temp = $self->getTemperatureSensor()->temperature();
+    my $date = DateTime->now()->iso8601();
+    print $STATFILE "$date - $temp\n";
+    return $self;
+}
+
 
 sub getTemperatureSensor {
     return $_[0]->{tempSensor};
@@ -217,7 +265,90 @@ sub isConfigValid() {
            ) {
         exitWithError("StatisticsWriteInterval is not a valid unsigned int");
     }
+    if ($c->{StatisticsWriteInterval}) {
+        unless(  $c->{StatisticsLogFile} && $c->{StatisticsLogFile} =~ /^.+$/  ) {
+            exitWithError("StatisticsLogFile must be a valid path if StatisticsWriteInterval is defined");
+        }
+    }
 
     return 1;
 }
 
+=head2 makeConfig
+
+Make a configuration HASH from an ordered set of values.
+This is only meant for helper function when dealing with CLI-scripts
+
+=cut
+
+sub makeConfig {
+    my %conf;
+    $conf{SwitchOnRelayBCMPin} = $_[0] if $_[0];
+    $conf{SwitchOffRelayBCMPin} = $_[1] if $_[1];
+    $conf{ActivationTemperature} = $_[2] if $_[2];
+    $conf{TargetTemperature} = $_[3] if $_[3];
+    $conf{TemperatureCorrection} = $_[4] if $_[4];
+    $conf{StatisticsWriteInterval} = $_[5] if $_[5];
+    $conf{StatisticsLogFile} = $_[6] if $_[6];
+    return \%conf;
+}
+
+
+=head2 _checkPid
+
+Checks if this daemon is already listening to the given pins.
+If a daemon is using these pins, the existing daemon is killed and this
+daemon is started.
+
+TODO:: Duplicates emb-rtttl PID-mechanism
+
+=cut
+
+sub _checkPid {
+    my ($self) = @_;
+
+    $self->{pid} = getPid($self);
+    _killExistingProgram($self->{pid}) if $self->{pid}->alive();
+    $self->{pid}->touch();
+}
+
+=head2 killHeater
+
+A static method for killing a Heater-daemon matching the given configuration.
+
+=cut
+
+sub killHeater {
+    my ($conf) = @_;
+    _killExistingProgram(getPid($conf));
+}
+
+=head2 getPid
+
+A static method to get the Proc::PID::File of this daemon from the given config.
+
+=cut
+
+sub getPid {
+    my ($conf) = @_;
+    my $name = _makePidFileName($conf->{SwitchOnRelayBCMPin},
+                                $conf->{SwitchOffRelayBCMPin},
+    );
+    return Proc::PID::File->new({name => $name,
+                                 verify => $name,
+                                }
+    );
+}
+
+sub _killExistingProgram {
+    my ($pid) = @_;
+    kill 'INT', $pid->read();
+}
+
+sub _makePidFileName {
+    my (@pins) = @_;
+    return join('-',__PACKAGE__,@pins);
+}
+
+
+1;
