@@ -30,7 +30,7 @@ use Time::HiRes;
 use DateTime;
 
 use GPIO;
-use Relay::DoubleLatch;
+use GPIO::Relay::DoubleLatch;
 
 
 my $configFile = "/etc/emb-heater/daemon.conf";
@@ -44,7 +44,7 @@ sub new {
     bless $self, $class;
     $self->_checkPid();
 
-    $self->{warmerRelay} = Relay::DoubleLatch->new(
+    $self->{warmerRelay} = GPIO::Relay::DoubleLatch->new(
         $self->{SwitchOnRelayBCMPin},
         $self->{SwitchOffRelayBCMPin});
 

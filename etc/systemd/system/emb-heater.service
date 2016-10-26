@@ -1,11 +1,10 @@
 [Unit]
-Description=Warming daemon
+Description=Heater relay control daemon
 
 [Service]
 Type=idle
 User=root
-WorkingDirectory=/usr/share/perl5
-ExecStart=/usr/bin/perl Warmer.pm
+ExecStart=/usr/local/bin/heater
 
 RestartSec=5s
 Restart=always
