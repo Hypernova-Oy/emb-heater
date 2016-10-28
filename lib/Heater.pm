@@ -28,6 +28,7 @@ use Sys::Syslog qw(:standard :macros);
 use Proc::PID::File;
 use Time::HiRes;
 use DateTime;
+use DateTime::TimeZone;
 
 use GPIO;
 use GPIO::Relay::DoubleLatch;
@@ -55,6 +56,8 @@ sub new {
             divider    => 1000,
         )
     );
+
+    setTimeZone();
 
     $self->_prepareStatistics();
     return $self;
@@ -183,9 +186,9 @@ sub writeStatistics {
         print $STATFILE "$msg\n";
         return $self;
     }
-    
+
     my $temp = $self->getTemperatureSensor()->temperature();
-    my $date = DateTime->now()->iso8601();
+    my $date = DateTime->now(time_zone => $ENV{TZ})->iso8601();
     print $STATFILE "$date - $temp\n";
     return $self;
 }
@@ -350,5 +353,16 @@ sub _makePidFileName {
     return join('-',__PACKAGE__,@pins);
 }
 
+
+sub setTimeZone {
+    return undef if $ENV{TZ};
+    my $TZ = `/bin/cat /etc/timezone`;
+    die "Timezone not defined in /etc/timezone" unless $TZ;
+    chomp($TZ);
+    my $tz = DateTime::TimeZone->new(name => $TZ);
+    die "Timezone '$tz' from /etc/timezone is not valid" unless $tz;
+    $ENV{TZ} = $TZ;
+    return 1;
+}
 
 1;

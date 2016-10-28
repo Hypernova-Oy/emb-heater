@@ -16,6 +16,14 @@ use Heater;
 
 my $heaterDaemonName = 'heater';
 
+
+subtest "TimeZone correctly set", \&timeZone;
+sub timeZone {
+  Heater::setTimeZone();
+  ok($ENV{TZ});
+}
+
+
 subtest "Monitor that a daemon generates statistics", \&monitorStatistics;
 sub monitorStatistics {
 
@@ -30,12 +38,12 @@ sub monitorStatistics {
 
   #We should start receiving statistical entries rapidly.
   subtest "Confirm statistical entry accuracy", sub {
-    $todayYmd = DateTime->now()->ymd('-');
+    $todayYmd = DateTime->now(time_zone => $ENV{TZ})->ymd('-');
     $statsRow = $tempFile->getline();
 
     ok($statsRow =~ /^${todayYmd}T\d{2}:\d{2}:\d{2} - /, "Temperature statistics has the correct YMD");
     ok($statsRow =~ / - (-?\d+\.?\d*)$/, "Temperature statistics has a sane temperature reading");
-    ok(15 <= $1 && $1 <= 25, "Temperature reading is sane"); #If you run these tests in an extreme environment, you might have to tweak these boundaries :)
+    ok(15 <= $1 && $1 <= 25, "Temperature reading is in office temperatures +15 - +25"); #If you run these tests in an extreme environment, you might have to tweak these boundaries :)
   };
 
   sleep 3; #Sleep a bit for the daemon to generate more statistics rows.
