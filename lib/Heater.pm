@@ -78,7 +78,9 @@ sub getTemperatureSensorID {
 
 sub start {
     my ($self) = @_;
-    $self->{warmingIsOn} = 0;
+
+    #Reset the heater relay. This can accidentally be left in the 'On'-position due to running tests or fiddling with gpio outside this program.
+    $self->turnWarmingOff();
     my $loopSleep = $self->_getMainLoopSleepDuration();
 
     while (1) {
