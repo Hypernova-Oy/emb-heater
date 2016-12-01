@@ -143,6 +143,10 @@ sub turnWarmingOff {
     return $self;
 }
 
+sub isWarming {
+    return shift->{warmingIsOn};
+}
+
 sub reachedActivationTemp {
     my ($self) = @_;
     return 1 if $self->deltaToActivationTemp() >= 0;
@@ -189,7 +193,8 @@ sub writeStatistics {
 
     my $temp = $self->getTemperatureSensor()->temperature();
     my $date = DateTime->now(time_zone => $ENV{TZ})->iso8601();
-    print $STATFILE "$date - $temp\n";
+    my $warming = $self->isWarming() ? 1 : 0;
+    print $STATFILE "$date - $temp - warming=$warming\n";
     return $self;
 }
 
