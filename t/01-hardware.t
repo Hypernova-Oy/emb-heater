@@ -40,5 +40,21 @@ sub relay {
 }
 
 
+subtest "Turning on heater for 1 minute and observing if there is any temperature change", \&relayWithTemp;
+sub relayWithTemp {
+
+  my $startingTemp = $heater->getTemperatureSensor()->temperature();
+  ok($startingTemp, "Got a starting temperature reading '$startingTemp'");
+
+  ok($heater->turnWarmingOn(), "Warming turned on for one minute. Observe that the heater starts to heat.");
+  sleep 60;
+  ok($heater->turnWarmingOff(), "Warming turned off");
+
+  my $endingTemp = $heater->getTemperatureSensor()->temperature();
+  ok($endingTemp, "Got a ending temperature reading '$endingTemp'");
+
+  ok($endingTemp > $startingTemp, "Ending temperature is higher than starting temperature. This test succeeds only when the heater can actually heat the temperature sensor.")
+}
+
 
 done_testing;

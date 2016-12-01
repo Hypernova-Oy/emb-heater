@@ -85,9 +85,9 @@ sub start {
 
         $self->writeStatistics();
 
-        if ($self->reachedActivationTemp() && !$self->{warmingIsOn}) {
+        if ($self->reachedActivationTemp() && not($self->isWarming())) {
             $self->turnWarmingOn();
-        } elsif ($self->{warmingIsOn} && $self->reachedTargetTemp()) {
+        } elsif ($self->isWarming() && $self->reachedTargetTemp()) {
             $self->turnWarmingOff();
         }
 
