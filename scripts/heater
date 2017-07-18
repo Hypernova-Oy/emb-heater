@@ -96,7 +96,7 @@ $SIG{USR1} = sub {
   print Data::Dumper::Dumper($heater);
 };
 $SIG{USR2} = sub {
-  print $heater->getTemperatureSensor()->temperature()."\n";
+  print $heater->temperatures()."\n";
 };
 $SIG{HUP} = sub {
   gracefullyTerminate($_[0]);

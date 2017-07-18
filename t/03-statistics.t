@@ -12,6 +12,7 @@ use t::Examples;
 use t::IPC;
 
 use Heater;
+use Heater::Config;
 
 
 my $heaterDaemonName = 'heater';
@@ -19,7 +20,7 @@ my $heaterDaemonName = 'heater';
 
 subtest "TimeZone correctly set", \&timeZone;
 sub timeZone {
-  Heater::setTimeZone();
+  Heater::Config::setTimeZone();
   ok($ENV{TZ});
 }
 
@@ -41,8 +42,8 @@ sub monitorStatistics {
     $todayYmd = DateTime->now(time_zone => $ENV{TZ})->ymd('-');
     $statsRow = $tempFile->getline();
 
-    ok($statsRow =~ /^${todayYmd}T\d{2}:\d{2}:\d{2} - /, "Temperature statistics has the correct YMD");
-    ok($statsRow =~ / - (-?\d+\.?\d*)$/, "Temperature statistics has a sane temperature reading");
+    like($statsRow, qr/^${todayYmd}T\d{2}:\d{2}:\d{2} - /, "Temperature statistics has the correct YMD");
+    like($statsRow, qr/ - (-?\d+\.?\d*)$/, "Temperature statistics has a sane temperature reading");
     ok(15 <= $1 && $1 <= 25, "Temperature reading is in office temperatures +15 - +25"); #If you run these tests in an extreme environment, you might have to tweak these boundaries :)
   };
 

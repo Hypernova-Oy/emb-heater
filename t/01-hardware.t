@@ -1,6 +1,9 @@
 #!/usr/bin/perl
 
 use Modern::Perl;
+use utf8;
+binmode STDOUT, ':encoding(UTF-8)';
+binmode STDERR, ':encoding(UTF-8)';
 
 use Test::More;
 
@@ -21,11 +24,13 @@ my $heater = t::Examples::getHeater();
 subtest "Testing temperature sensor", \&tempSensor;
 sub tempSensor {
 
-  my $tempSensorId = Heater::getTemperatureSensorID();
-  ok($tempSensorId, "Got a temperature sensor id '$tempSensorId'");
+  my @$tempSensorIds = Heater::getTemperatureSensorIDs();
+  ok(scalar(@$tempSensorId), "Found '".scalar(@$tempSensorIds)."' temperature sensors.");
 
-  my $temp = $heater->getTemperatureSensor()->temperature();
-  ok($temp, "Got a temperature reading '$temp'");
+  my $temps = $heater->temperatures('withQuantum');
+  my $tempsString = join(", ", @$temps);
+  ok(scalar(@$temps), "Got temperature readings '$tempsString'");
+  like($tempsString, qr/℃/, "Temperature reading with a quantifier");
 
 }
 
@@ -43,17 +48,26 @@ sub relay {
 subtest "Turning on heater for 1 minute and observing if there is any temperature change", \&relayWithTemp;
 sub relayWithTemp {
 
-  my $startingTemp = $heater->getTemperatureSensor()->temperature();
-  ok($startingTemp, "Got a starting temperature reading '$startingTemp'");
+  my $sensors = $heater->getTemperatureSensors();
+  my $startingTemps = $heater->temperatures();
+  my $startingTempsString = join(', ',@$startingTemps);
+  ok(scalar(@$startingTemps), "Got starting temperature readings '$startingTempsString'");
 
   ok($heater->turnWarmingOn(), "Warming turned on for one minute. Observe that the heater starts to heat.");
   sleep 60;
   ok($heater->turnWarmingOff(), "Warming turned off");
 
-  my $endingTemp = $heater->getTemperatureSensor()->temperature();
-  ok($endingTemp, "Got a ending temperature reading '$endingTemp'");
+  my $endingTemps = $heater->temperatures();
+  my $endingTempsString = join(', ',@$endingTemps);
+  ok(scalar(@$endingTemps), "Got ending temperature readings '$endingTempsString'");
 
-  ok($endingTemp > $startingTemp, "Ending temperature is higher than starting temperature. This test succeeds only when the heater can actually heat the temperature sensor.")
+  ##These tests succeed only when the heater can actually heat all temperature sensors.
+  for(my $i=0 ; $i<scalar(@$startingTemps) ; $i++) {
+    my $st = $startingTemps->[$i];
+    my $et = $endingTemps->[$i];
+    my $s = $sensors->[$i];
+    ok($et > $st, "Ending temperature is higher than starting temperature for sensor '".$s->{id}."'.");
+  }
 }
 
 

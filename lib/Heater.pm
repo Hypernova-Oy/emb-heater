@@ -22,6 +22,10 @@ package Heater;
 our $VERSION = "0.01";
 
 use Modern::Perl;
+use utf8;
+binmode STDOUT, ':encoding(UTF-8)';
+binmode STDERR, ':encoding(UTF-8)';
+
 use Config::Simple;
 use HiPi::Interface::DS18X20;
 use Sys::Syslog qw(:standard :macros);
@@ -33,15 +37,22 @@ use DateTime::TimeZone;
 use GPIO;
 use GPIO::Relay::DoubleLatch;
 
+use Heater::Statistics;
+use Heater::Config;
 
-my $configFile = "/etc/emb-heater/daemon.conf";
 
+use constant {
+    NOOP             => 1000,
+    TURN_WARMING_ON  => 1001,
+    TURN_WARMING_OFF => 1002,
+    EMERGENCY_STOP   => 2001,
+};
 
 
 sub new {
     my ($class, $params) = @_;
 
-    my $self = mergeConfig($params);
+    my $self = Heater::Config::configure($params);
     bless $self, $class;
     $self->_checkPid();
 
@@ -49,31 +60,34 @@ sub new {
         $self->{SwitchOnRelayBCMPin},
         $self->{SwitchOffRelayBCMPin});
 
-    $self->_setTemperatureSensor(
-        HiPi::Interface::DS18X20->new(
-            id         => getTemperatureSensorID(),
-            correction => $self->{TemperatureCorrection},
-            divider    => 1000,
-        )
-    );
+    $self->{tempSensors} = []; #Prepare to load temp sensors to this data structure
+    my $tempSensorIDs = getTemperatureSensorIDs();
+    foreach my $id (@$tempSensorIDs) {
+        $self->_addTemperatureSensor({id => $id});
+    }
 
     setTimeZone();
 
-    $self->_prepareStatistics();
+    $self->{statistics} = Heater::Statistics->new($self);
     return $self;
 }
 
-sub getTemperatureSensorID {
-    opendir(my $dirHandle, "/sys/bus/w1/devices")
-	|| exitWithError("Couldn't open temperature sensor dir");
+sub s {
+    return $_[0]->{statistics};
+}
+
+sub getTemperatureSensorIDs {
+    my $oneWireDeviceDir = "/sys/bus/w1/devices";
+    opendir(my $dirHandle, $oneWireDeviceDir)
+        || exitWithError("Couldn't open OneWire device dir '$oneWireDeviceDir' !");
     my @files = readdir($dirHandle);
     my @tempSensors = grep (/^28.*/, @files);
 
     if (! scalar @tempSensors) {
-	exitWithError("Couldn't connect to a temperature sensor");
+        exitWithError("Couldn't find any temperature sensors from '$oneWireDeviceDir' !?");
     }
 
-    return $tempSensors[0];
+    return \@tempSensors;
 }
 
 sub start {
@@ -85,12 +99,20 @@ sub start {
 
     while (1) {
 
-        $self->writeStatistics();
+        $self->s()->writeStatistics();
 
-        if ($self->reachedActivationTemp() && not($self->isWarming())) {
+        my $hwInstruction = $self->measureState();
+
+        if ($hwInstruction == TURN_WARMING_ON) {
             $self->turnWarmingOn();
-        } elsif ($self->isWarming() && $self->reachedTargetTemp()) {
+        } elsif ($hwInstruction == TURN_WARMING_OFF) {
             $self->turnWarmingOff();
+        } elsif ($hwInstruction == EMERGENCY_STOP) {
+            $self->turnWarmingOff();
+        } elsif ($hwInstruction == NOOP) {
+            #Do nothing
+        } else {
+            die "start():> Unknown hardware instruction '$hwInstruction'";
         }
 
         Time::HiRes::usleep($loopSleep);
@@ -111,9 +133,34 @@ sub _getMainLoopSleepDuration {
     return 5000*1000;
 }
 
+=head2 measureState
+
+Does measurements and decides whether to start/stop heating. Returns the hardware instructions.
+
+Separating measurements from hardware actions make it easier to write tests for the heating logic.
+
+=cut
+
+sub measureState {
+    my ($self) = @_;
+
+    if ($self->reachedActivationTemp() && not($self->isWarming())) {
+        $self->turnWarmingOn();
+
+    } elsif ($self->isWarming() && $self->reachedTargetTemp()) {
+        $self->turnWarmingOff();
+
+    }
+}
+
 sub reachedTargetTemp {
     my ($self) = @_;
-    return 1 if $self->deltaToTargetTemp() <= 0;
+    my $temps = $self->temperatures();
+    my $tooCold = 0;
+    foreach my $temp (@$temps) {
+        $tooCold = 1 if $self->deltaToTargetTemp($temp) >= 0;
+    }
+    return 1 if (not($tooCold));
 }
 
 =head2 deltaToTargetTemp
@@ -125,10 +172,39 @@ Negative degrees means we can endure that much cooling.
 =cut
 
 sub deltaToTargetTemp {
+    my ($self, $tempReading) = @_;
+    return _tempDelta($self->{TargetTemperature}, $tempReading);
+}
+
+=head2 reachedActivationTemp
+
+@RETURNS Boolean, true if any sensor reaches this threshold
+
+=cut
+
+sub reachedActivationTemp {
     my ($self) = @_;
-    my $temperature = $self->getTemperatureSensor()->temperature();
-    my $targetTemp = $self->{TargetTemperature};
-    return ($targetTemp+1000) - ($temperature+1000);
+    my $temps = $self->temperatures();
+    foreach my $temp (@$temps) {
+        return 1 if $self->deltaToActivationTemp($temp) >= 0;
+    }
+}
+
+=head2 deltaToActivationTemp
+
+Calculates how many degrees apart the current temperature and the minimum allowed temperature are.
+Positive degrees means we must get more heating to reach safe temperatures.
+Negative degrees means we can endure that much cooling.
+
+=cut
+
+sub deltaToActivationTemp {
+    my ($self, $tempReading) = @_;
+    return _tempDelta($self->{ActivationTemperature}, $tempReading);
+}
+
+sub _tempDelta {
+    return ($_[0]+1000) - ($_[1]+1000);
 }
 
 sub turnWarmingOn {
@@ -149,160 +225,47 @@ sub isWarming {
     return shift->{warmingIsOn};
 }
 
-sub reachedActivationTemp {
-    my ($self) = @_;
-    return 1 if $self->deltaToActivationTemp() >= 0;
-}
+=head2 temperatures
 
-=head2 deltaToActivationTemp
-
-Calculates how many degrees apart the current temperature and the minimum temperature are.
-Positive degrees means we must get more heating to reach safe temperatures.
-Negative degrees means we can endure that much cooling.
+@PARAM1 Boolean, append the quantum sigil '℃' after the temperature reading?
+@RETURNS List of doubles, list of temperatures of all registered temperature sensors
+             eg. [-9.725, -12.12]
+             eg. [-9.725℃, -12.12℃]
 
 =cut
 
-sub deltaToActivationTemp {
-    my ($self) = @_;
-    my $temperature = $self->getTemperatureSensor()->temperature();
-    my $targetTemp = $self->{ActivationTemperature};
-    return ($targetTemp+1000) - ($temperature+1000);
+sub temperatures {
+    my $withQuantum = $_[1];
+    my $sensors = $_[0]->getTemperatureSensors();
+    my @temps;
+    foreach my $sensor (@$sensors) {
+        my $t = $sensor->temperature();
+        warn "Sensor '$id' reading '$t' exceeds printable column size '$tempReadingColWidth', increase it!" if (length $t > $tempReadingColWidth);
+        push(@temps, ($withQuantum) ? $sensor->temperature().'℃' : $sensor->temperature());
+    }
+    return \@temps;
 }
 
-sub exitWithError {
-    my ($error) = @_;
-    syslog(LOG_ERR, $error);
-    say $error;
-    exit(1);
+sub _addTemperatureSensor {
+    my ($self, $params) = @_;
+    my $id;
+    eval { $id = $params->{id}; };
+    die ref($self)."->_addTemperatureSensor($params):> \$params->{id} is not defined! $@" unless $id;
+
+    foreach my $sens (@{$self->{tempSensors}}) {
+        warn "_addTemperatureSensor():> Device '$id' already added?" if ($sens->{id} eq $id);
+    }
+
+    push ( @{$self->{tempSensors}},
+        HiPi::Interface::DS18X20->new(
+            id         => $id,
+            correction => $self->{TemperatureCorrection},
+            divider    => 1000,
+    );
 }
-
-
-sub _prepareStatistics {
-    my ($self) = @_;
-
-    open(my $STATFILE, '>>', $self->{StatisticsLogFile}) or die $!;
-    $self->{STATFILE} = $STATFILE;
+sub getTemperatureSensors {
+    return $_[0]->{tempSensors};
 }
-
-sub writeStatistics {
-    my ($self, $msg) = @_;
-    my $STATFILE = $self->{STATFILE};
-
-    if ($msg) {
-        print $STATFILE "$msg\n";
-        return $self;
-    }
-
-    my $temp = $self->getTemperatureSensor()->temperature();
-    my $date = DateTime->now(time_zone => $ENV{TZ})->iso8601();
-    my $warming = $self->isWarming() ? 1 : 0;
-    print $STATFILE "$date - $temp - warming=$warming\n";
-    return $self;
-}
-
-
-sub getTemperatureSensor {
-    return $_[0]->{tempSensor};
-}
-sub _setTemperatureSensor {
-    $_[0]->{tempSensor} = $_[1];
-    return $_[0];
-}
-
-=head2 mergeConfig
-
-Take user parameters and system configuration and override with user parameters.
-Validate config.
-
-=cut
-
-sub mergeConfig {
-    my ($params) = @_;
-
-    my $config = getConfig();
-    while( my ($k,$v) = each(%$params) ) {
-        $config->{$k} = $params->{$k};
-    }
-    isConfigValid($config);
-    return $config;
-}
-
-=head2
-
-Get config and remove strange default-block
-
-=cut
-
-sub getConfig {
-    my $c = new Config::Simple($configFile)
-	|| exitWithError(Config::Simple->error());
-    $c = $c->vars();
-    my %c;
-    while (my ($k,$v) = each(%$c)) {
-        my $newKey = $k;
-        $newKey =~ s/^default\.//;
-        $c{$newKey} = $c->{$k};
-    }
-    return \%c;
-}
-
-
-my $signed_float_regexp = '-?\d+\.?\d*';
-my $signed_int_regexp = '-?\d+';
-my $unsigned_int_regexp = '\d+';
-sub isConfigValid() {
-    my ($c) = @_;
-
-    unless ($c->{ActivationTemperature} && $c->{ActivationTemperature} =~ /^$signed_float_regexp$/) {
-        exitWithError("ActivationTemperature is not a valid signed float");
-    }
-    unless ($c->{TargetTemperature} && $c->{TargetTemperature} =~ /^$signed_float_regexp$/) {
-        exitWithError("TargetTemperature is not a valid signed float");
-    }
-    unless ($c->{TemperatureCorrection} && $c->{TemperatureCorrection} =~ /^$signed_int_regexp$/) {
-        exitWithError("TemperatureCorrection is not a valid signed int");
-    }
-    unless ($c->{SwitchOnRelayBCMPin} && $c->{SwitchOnRelayBCMPin} =~ /^$unsigned_int_regexp$/) {
-        exitWithError("SwitchOnRelayBCMPin is not a valid unsigned int");
-    }
-    unless ($c->{SwitchOffRelayBCMPin} && $c->{SwitchOffRelayBCMPin} =~ /^$unsigned_int_regexp$/) {
-        exitWithError("SwitchOffRelayBCMPin is not a valid unsigned int");
-    }
-    unless ($c->{StatisticsWriteInterval} &&
-               ($c->{StatisticsWriteInterval} =~ /^$unsigned_int_regexp$/ ||
-                $c->{StatisticsWriteInterval} < 0
-               )
-           ) {
-        exitWithError("StatisticsWriteInterval is not a valid unsigned int");
-    }
-    if ($c->{StatisticsWriteInterval}) {
-        unless(  $c->{StatisticsLogFile} && $c->{StatisticsLogFile} =~ /^.+$/  ) {
-            exitWithError("StatisticsLogFile must be a valid path if StatisticsWriteInterval is defined");
-        }
-    }
-
-    return 1;
-}
-
-=head2 makeConfig
-
-Make a configuration HASH from an ordered set of values.
-This is only meant for helper function when dealing with CLI-scripts
-
-=cut
-
-sub makeConfig {
-    my %conf;
-    $conf{SwitchOnRelayBCMPin} = $_[0] if $_[0];
-    $conf{SwitchOffRelayBCMPin} = $_[1] if $_[1];
-    $conf{ActivationTemperature} = $_[2] if $_[2];
-    $conf{TargetTemperature} = $_[3] if $_[3];
-    $conf{TemperatureCorrection} = $_[4] if $_[4];
-    $conf{StatisticsWriteInterval} = $_[5] if $_[5];
-    $conf{StatisticsLogFile} = $_[6] if $_[6];
-    return \%conf;
-}
-
 
 =head2 _checkPid
 
@@ -358,18 +321,6 @@ sub _killExistingProgram {
 sub _makePidFileName {
     my (@pins) = @_;
     return join('-',__PACKAGE__,@pins);
-}
-
-
-sub setTimeZone {
-    return undef if $ENV{TZ};
-    my $TZ = `/bin/cat /etc/timezone`;
-    die "Timezone not defined in /etc/timezone" unless $TZ;
-    chomp($TZ);
-    my $tz = DateTime::TimeZone->new(name => $TZ);
-    die "Timezone '$tz' from /etc/timezone is not valid" unless $tz;
-    $ENV{TZ} = $TZ;
-    return 1;
 }
 
 1;
