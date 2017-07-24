@@ -61,12 +61,14 @@ sub new {
         $self->{SwitchOffRelayBCMPin});
 
     $self->{tempSensors} = []; #Prepare to load temp sensors to this data structure
-    my $tempSensorIDs = getTemperatureSensorIDs();
-    foreach my $id (@$tempSensorIDs) {
+
+    my @tempSensorIDs = HiPi::Interface::DS18X20->list_slaves();
+    die "No DS18X20-compatible temperature sensors detected on the one wire bus. Have you enabled the one-wire hardware device?"
+        unless scalar(@tempSensorIDs);
+
+    foreach my $id (@tempSensorIDs) {
         $self->_addTemperatureSensor({id => $id});
     }
-
-    setTimeZone();
 
     $self->{statistics} = Heater::Statistics->new($self);
     return $self;
@@ -79,12 +81,12 @@ sub s {
 sub getTemperatureSensorIDs {
     my $oneWireDeviceDir = "/sys/bus/w1/devices";
     opendir(my $dirHandle, $oneWireDeviceDir)
-        || exitWithError("Couldn't open OneWire device dir '$oneWireDeviceDir' !");
+        || die("Couldn't open OneWire device dir '$oneWireDeviceDir' !");
     my @files = readdir($dirHandle);
     my @tempSensors = grep (/^28.*/, @files);
 
     if (! scalar @tempSensors) {
-        exitWithError("Couldn't find any temperature sensors from '$oneWireDeviceDir' !?");
+        die("Couldn't find any temperature sensors from '$oneWireDeviceDir' !?");
     }
 
     return \@tempSensors;
@@ -240,7 +242,6 @@ sub temperatures {
     my @temps;
     foreach my $sensor (@$sensors) {
         my $t = $sensor->temperature();
-        warn "Sensor '$id' reading '$t' exceeds printable column size '$tempReadingColWidth', increase it!" if (length $t > $tempReadingColWidth);
         push(@temps, ($withQuantum) ? $sensor->temperature().'℃' : $sensor->temperature());
     }
     return \@temps;
@@ -261,6 +262,7 @@ sub _addTemperatureSensor {
             id         => $id,
             correction => $self->{TemperatureCorrection},
             divider    => 1000,
+        )
     );
 }
 sub getTemperatureSensors {

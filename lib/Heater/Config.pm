@@ -37,7 +37,7 @@ sub configure {
 
     my $config = _mergeConfig($params);
 
-    _setTimeZone();
+    setTimeZone();
 
     return $config;
 }

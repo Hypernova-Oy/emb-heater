@@ -27,7 +27,8 @@ use Scalar::Util qw(weaken);
 sub new {
     my ($class, $heater) = @_;
 
-    my $self = {heater => weaken($heater)};
+    my $self = {heater => $heater};
+    weaken($self->{heater});
     bless $self, $class;
 
     open(my $STATFILE, '>>:encoding(UTF-8)', $self->h()->{StatisticsLogFile}) or die $!;
@@ -49,7 +50,13 @@ sub writeStatistics {
     my $warming = $self->h()->isWarming() ? 1 : 0;
     my @temps = $self->h()->temperatures('type');
 
-    print $STATFILE "$date - ".join(" & ",@temps)." - warming=$warming\n";
+    my @tempPrintables;
+    foreach my $temp (@temps) {
+        warn "Temperature reading '$temp' exceeds printable column size '$tempReadingColWidth', increase it!" if (length $temp > $tempReadingColWidth);
+        push(@tempPrintables, sprintf("\%${tempReadingColWidth}s", $temp));
+    }
+
+    print $STATFILE "$date - ".join(" & ",@tempPrintables)." - warming=$warming\n";
 
     return $self;
 }
