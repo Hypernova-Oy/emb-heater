@@ -62,12 +62,12 @@ sub new {
 
     $self->{tempSensors} = []; #Prepare to load temp sensors to this data structure
 
-    my @tempSensorIDs = HiPi::Interface::DS18X20->list_slaves();
+    my @tempSensorDevices = HiPi::Interface::DS18X20->list_slaves();
     die "No DS18X20-compatible temperature sensors detected on the one wire bus. Have you enabled the one-wire hardware device?"
-        unless scalar(@tempSensorIDs);
+        unless scalar(@tempSensorDevices);
 
-    foreach my $id (@tempSensorIDs) {
-        $self->_addTemperatureSensor({id => $id});
+    foreach my $device (@tempSensorDevices) {
+        $self->_addTemperatureSensor($device);
     }
 
     $self->{statistics} = Heater::Statistics->new($self);

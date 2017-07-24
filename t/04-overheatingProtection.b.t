@@ -35,8 +35,8 @@ sub storyOfHeather {
   ok($sensors = $heater->getTemperatureSensors(),
      "Given Heather has two temperature sensors, one for the PCB and the other for the heating element.");
 
-  $sensor1ID = $sensors->[0]->{id};
-  $sensor2ID = $sensors->[1]->{id};
+  $sensor1ID = ($sensors->[0]) ? $sensors->[0]->id : '28-01';
+  $sensor2ID = ($sensors->[1]) ? $sensors->[1]->id : '28-02';
 
   ok(!$heater->isWarming(),
      "Given Heather is not warming by default");
@@ -175,9 +175,9 @@ done_testing;
 sub makeTempsMockerSub {
     my @temps = @_;
     return sub {
-        return $temps[0] if ($_[0]->{id} eq $sensor1ID);
-        return $temps[1] if ($_[0]->{id} eq $sensor2ID);
-        #return $temps[2] if ($_[0]->{id} eq $sensor3ID);
+        return $temps[0] if ($_[0]->id eq $sensor1ID);
+        return $temps[1] if ($_[0]->id eq $sensor2ID);
+        #return $temps[2] if ($_[0]->id eq $sensor3ID);
     };
 }
 

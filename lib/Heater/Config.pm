@@ -87,31 +87,40 @@ sub _isConfigValid() {
     my ($c) = @_;
 
     unless ($c->{ActivationTemperature} && $c->{ActivationTemperature} =~ /^$signed_float_regexp$/) {
-        exitWithError("ActivationTemperature is not a valid signed float");
+        die("ActivationTemperature is not a valid signed float");
     }
     unless ($c->{TargetTemperature} && $c->{TargetTemperature} =~ /^$signed_float_regexp$/) {
-        exitWithError("TargetTemperature is not a valid signed float");
+        die("TargetTemperature is not a valid signed float");
     }
     unless ($c->{TemperatureCorrection} && $c->{TemperatureCorrection} =~ /^$signed_int_regexp$/) {
-        exitWithError("TemperatureCorrection is not a valid signed int");
+        die("TemperatureCorrection is not a valid signed int");
     }
     unless ($c->{SwitchOnRelayBCMPin} && $c->{SwitchOnRelayBCMPin} =~ /^$unsigned_int_regexp$/) {
-        exitWithError("SwitchOnRelayBCMPin is not a valid unsigned int");
+        die("SwitchOnRelayBCMPin is not a valid unsigned int");
     }
     unless ($c->{SwitchOffRelayBCMPin} && $c->{SwitchOffRelayBCMPin} =~ /^$unsigned_int_regexp$/) {
-        exitWithError("SwitchOffRelayBCMPin is not a valid unsigned int");
+        die("SwitchOffRelayBCMPin is not a valid unsigned int");
     }
     unless ($c->{StatisticsWriteInterval} &&
                ($c->{StatisticsWriteInterval} =~ /^$unsigned_int_regexp$/ ||
                 $c->{StatisticsWriteInterval} < 0
                )
            ) {
-        exitWithError("StatisticsWriteInterval is not a valid signed int");
+        die("StatisticsWriteInterval is not a valid signed int");
     }
     if ($c->{StatisticsWriteInterval}) {
         unless(  $c->{StatisticsLogFile} && $c->{StatisticsLogFile} =~ /^.+$/  ) {
-            exitWithError("StatisticsLogFile must be a valid path if StatisticsWriteInterval is defined");
+            die("StatisticsLogFile must be a valid path if StatisticsWriteInterval is defined");
         }
+    }
+    unless ($c->{EmergencyShutdownTemperature} && $c->{EmergencyShutdownTemperature} =~ /^$signed_int_regexp$/) {
+        die("EmergencyShutdownTemperature is not a valid signed int");
+    }
+    if ($c->{EmergencyShutdownTemperature} > 85) {
+        die("EmergencyShutdownTemperature is more than the allowed safe limit of 85 degrees celsius");
+    }
+    unless ($c->{EmergencyPassedTemperature} && $c->{EmergencyPassedTemperature} =~ /^$signed_int_regexp$/) {
+        die("EmergencyPassedTemperature is not a valid signed int");
     }
 
     return 1;
@@ -133,6 +142,8 @@ sub makeConfig {
     $conf{TemperatureCorrection} = $_[4] if $_[4];
     $conf{StatisticsWriteInterval} = $_[5] if $_[5];
     $conf{StatisticsLogFile} = $_[6] if $_[6];
+    $conf{EmergencyShutdownTemperature} = $_[7] if $_[7];
+    $conf{EmergencyPassedTemperature} = $_[8] if $_[8];
     return \%conf;
 }
 
