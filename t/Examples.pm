@@ -36,6 +36,8 @@ sub getDefaultConf {
         TargetTemperature => -17,
         TemperatureCorrection => 100,
         StatisticsWriteInterval => -1,
+        EmergencyShutdownTemperature => 85,
+        EmergencyPassedTemperature => 70,
     };
 }
 
