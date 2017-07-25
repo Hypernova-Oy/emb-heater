@@ -39,6 +39,7 @@ sub getDefaultConf {
         EmergencyShutdownTemperature => 85,
         EmergencyPassedTemperature => 70,
         TemperatureSensorsCount => 2,
+        Verbose                 => -4, #Hide all log output
     };
 }
 

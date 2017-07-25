@@ -47,12 +47,12 @@ sub initLogger {
 #sleep 1;
 
     if ($ENV{HEATER_TEST_MODE}) {
-        Log::Log4perl->init($l4pf); #init_and_watch causes Log::Log4perl to fail spectacularly trying to find log level is_INFO which doesn't exist.
+        Log::Log4perl->easy_init;
     } else {
         Log::Log4perl->init_and_watch($l4pf, 10);
     }
-    my $verbose = $ENV{HEATER_LOG_LEVEL} || $config->param('Verbose');
-    Log::Log4perl->appender_thresholds_adjust($verbose);
+    my $verbose = $ENV{HEATER_LOG_LEVEL} || $config->{Verbose};
+    Log::Log4perl->appender_thresholds_adjust($verbose*-1);
 }
 
 =head2 flatten

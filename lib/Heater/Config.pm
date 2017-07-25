@@ -171,6 +171,7 @@ sub makeConfig {
     $conf{EmergencyPassedTemperature} = $_[8] if $_[8];
     $conf{TemperatureSensorsCount} = $_[9] if $_[9];
     $conf{MinimumHeatingEfficiency} = $_[10] if $_[10];
+    $conf{Verbose}                  = $_[11] if $_[11];
     return \%conf;
 }
 

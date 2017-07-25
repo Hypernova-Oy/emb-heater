@@ -10,6 +10,8 @@ use t::Mocks;
 
 use Heater;
 
+$ENV{HEATER_TEST_MODE} = 1;
+#$ENV{HEATER_LOG_LEVEL} = 6; #Full logging to stdout
 
 my $heater = t::Examples::getHeater();
 

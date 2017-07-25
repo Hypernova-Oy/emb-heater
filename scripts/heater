@@ -36,8 +36,11 @@ A temperature sensor controlled relay program.
 Set configs at /etc/emb-heater/daemon.conf
 
 
-  -v --verbose        Defaults to 0, minimal output.
-                      1, doesn't do anything either.
+  -v --verbose        Defaults to 0, no Log::Log4perl-adjustment.
+                      1 increases log verbosity with one level.
+                      -3 decreases it with 3.
+                      Internally calls Log::Log4perl->appender_thresholds_adjust()
+                      More preferred way is to use /etc/emb-heater/log4perl.conf
 
   -h --help           This HELP!
 
@@ -83,7 +86,8 @@ if ($help) {
 
 my $conf = Heater::Config::makeConfig(
               $onPin,$offPin,$activationTemp,$targetTemp,$tempCorrection,
-              $statisticsWriteInterval,$statisticsFile
+              $statisticsWriteInterval,$statisticsFile, undef, undef, undef, undef,
+              $verbose,
 );
 my $heater = Heater->new($conf);
 
