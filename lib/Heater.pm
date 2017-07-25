@@ -48,9 +48,9 @@ my $l = bless({}, 'HeLog');
 
 use Heater::Exception::Hardware::TemperatureSensor;
 
-$STATE_WARMING            = 'W';
-$STATE_IDLE               = 'I';
-$STATE_EMERGENCY_SHUTDOWN = 'E';
+our $STATE_WARMING            = 'W';
+our $STATE_IDLE               = 'I';
+our $STATE_EMERGENCY_SHUTDOWN = 'E';
 
 
 =head1 SYNOPSIS
@@ -90,7 +90,7 @@ sub new {
     #Reset the heater relay. This can accidentally be left in the 'On'-position due to running tests or fiddling with gpio outside this program.
     $l->info("Turning off heater just in case");
     $self->turnWarmingOff();
-    $self->setState(STATE_IDLE);
+    $self->setState($STATE_IDLE);
 
     return $self;
 }
@@ -156,7 +156,7 @@ Makes sure the hardware is set to the correct state.
 =cut
 
 sub enforceState {
-    my ($self) = @_:
+    my ($self) = @_;
 
     $self->state->tick;
 }
@@ -254,8 +254,8 @@ sub setState {
     if ($self->state && $self->state->name ne $stateName) {
         $self->{state} = Heater::State->new({
             heater => $self,
-            name => $state,
-            startingTemps = $self->temperatures(),
+            name => $stateName,
+            startingTemps => $self->temperatures(),
         });
     }
 }

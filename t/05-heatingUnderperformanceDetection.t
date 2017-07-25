@@ -37,13 +37,13 @@ sub triggerHeatingElementMalfunction {
   ok($module->mock('temperature', t::Mocks::makeTempsMockerSub(-22, -22)),
      "Given the ambient temperature is at -22");
 
-  ok(newTickAndTestState($heater, Heater::STATE_WARMING, 1),
+  ok(newTickAndTestState($heater, $Heater::STATE_WARMING, 1),
      "Then Heather starts heating");
 
   ok($heater->state->setStarted(time - 50),
      "Given Heather has heated for 50 seconds");
 
-  ok(newTickAndTestState($heater, Heater::STATE_WARMING, 1),
+  ok(newTickAndTestState($heater, $Heater::STATE_WARMING, 1),
      "Then Heather keeps on heating");
 
   ok($heater->state->setStarted(time - 120),
