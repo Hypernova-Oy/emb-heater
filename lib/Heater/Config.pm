@@ -18,9 +18,12 @@ use Modern::Perl;
 use utf8;
 binmode STDOUT, ':encoding(UTF-8)';
 binmode STDERR, ':encoding(UTF-8)';
+use Carp qw(longmess);
 
 use Config::Simple;
 use DateTime::TimeZone;
+
+#use HeLog; #We cannot use Log::Log4perl here, because the configuration hasn't been validated yet. Configuration controls logging. Die on errors instead.
 
 my $configFile = "/etc/emb-heater/daemon.conf";
 
@@ -28,18 +31,21 @@ my $configFile = "/etc/emb-heater/daemon.conf";
 
 Configures the whole program
 
-@RETURNS Config::Simple
+@RETURNS HASHRef with configuration values
 
 =cut
 
+my $olConfig;
 sub configure {
     my ($params) = @_;
 
-    my $config = _mergeConfig($params);
+    $olConfig = _mergeConfig($params);
+    $l->debug("Using configurations: ".$l->flatten($config));
 
-    setTimeZone();
+    my $tz = setTimeZone();
+    $l->debug("Using time zone: $tz");
 
-    return $config;
+    return $olConfig;
 }
 
 =head2 mergeConfig
@@ -51,22 +57,22 @@ Validate config.
 
 sub _mergeConfig {
     my ($params) = @_;
+    $l->debug("Received following configuration overrides: ".$l->flatten($params)) if $params;
 
-    my $config = _getConfig();
-    while( my ($k,$v) = each(%$params) ) {
-        $config->{$k} = $params->{$k};
+    my $config = _slurpConfig();
+
+    #Merge params to config
+    if(ref($params) eq 'HASH') {
+        while( my ($k,$v) = each(%$params) ) {
+            $config->{$k} = $params->{$k};
+        }
     }
+
     _isConfigValid($config);
     return $config;
 }
 
-=head2
-
-Get config and remove strange default-block
-
-=cut
-
-sub _getConfig {
+sub _slurpConfig {
     my $c = new Config::Simple($configFile)
         || exitWithError(Config::Simple->error());
     $c = $c->vars();
@@ -77,6 +83,17 @@ sub _getConfig {
         $c{$newKey} = $c->{$k};
     }
     return \%c;
+}
+
+=head2
+
+Get config and remove strange default-block
+
+=cut
+
+sub getConfig {
+    return $olConfig if $olConfig;
+    return configure();
 }
 
 
@@ -122,6 +139,12 @@ sub _isConfigValid() {
     unless ($c->{EmergencyPassedTemperature} && $c->{EmergencyPassedTemperature} =~ /^$signed_int_regexp$/) {
         die("EmergencyPassedTemperature is not a valid signed int");
     }
+    unless ($c->{TemperatureSensorsCount} && $c->{TemperatureSensorsCount} =~ /^$unsigned_int_regexp$/) {
+        die("TemperatureSensorsCount is not a valid unsigned int");
+    }
+    unless ($c->{MinimumHeatingEfficiency} && $c->{MinimumHeatingEfficiency} =~ /^$unsigned_int_regexp$/) {
+        die("MinimumHeatingEfficiency is not a valid unsigned int");
+    }
 
     return 1;
 }
@@ -144,6 +167,8 @@ sub makeConfig {
     $conf{StatisticsLogFile} = $_[6] if $_[6];
     $conf{EmergencyShutdownTemperature} = $_[7] if $_[7];
     $conf{EmergencyPassedTemperature} = $_[8] if $_[8];
+    $conf{TemperatureSensorsCount} = $_[9] if $_[9];
+    $conf{MinimumHeatingEfficiency} = $_[10] if $_[10];
     return \%conf;
 }
 
@@ -155,14 +180,14 @@ Autoconfigures the system timezone
 =cut
 
 sub setTimeZone {
-    return undef if $ENV{TZ};
+    return $ENV{TZ} if $ENV{TZ};
     my $TZ = `/bin/cat /etc/timezone`;
     die "Timezone not defined in /etc/timezone" unless $TZ;
     chomp($TZ);
     my $tz = DateTime::TimeZone->new(name => $TZ);
     die "Timezone '$tz' from /etc/timezone is not valid" unless $tz;
     $ENV{TZ} = $TZ;
-    return 1;
+    return $ENV{TZ};
 }
 
 1;

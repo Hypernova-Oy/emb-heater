@@ -25,6 +25,8 @@ use Modern::Perl;
 use utf8;
 binmode STDOUT, ':encoding(UTF-8)';
 binmode STDERR, ':encoding(UTF-8)';
+use Try::Tiny;
+use Scalar::Util qw(blessed);
 
 use Config::Simple;
 use HiPi::Interface::DS18X20;
@@ -39,14 +41,29 @@ use GPIO::Relay::DoubleLatch;
 
 use Heater::Statistics;
 use Heater::Config;
+use Heater::Transitions;
+use Heater::Pid;
 
+use HeLog;
+my $l = bless({}, 'HeLog');
+
+use Heater::Exception::Hardware::TemperatureSensor;
 
 use constant {
-    NOOP             => 1000,
-    TURN_WARMING_ON  => 1001,
-    TURN_WARMING_OFF => 1002,
-    EMERGENCY_STOP   => 2001,
+    STATE_WARMING            => 'W',
+    STATE_IDLE               => 'I',
+    STATE_EMERGENCY_SHUTDOWN => 'E',
 };
+
+
+=head1 SYNOPSIS
+
+A Relay-controlled Heater with multiple temperature sensors.
+Operates autonomously, trying to keep the temperature readings of temperature sensors between nominal operational temperatures.
+
+See doc/Heater.png for the Heater's internal states activity diagram. .uxf is the source Umlet-file
+
+=cut
 
 
 sub new {
@@ -54,16 +71,17 @@ sub new {
 
     my $self = Heater::Config::configure($params);
     bless $self, $class;
-    $self->_checkPid();
+    Heater::Pid::checkPid($self);
 
     $self->{warmerRelay} = GPIO::Relay::DoubleLatch->new(
         $self->{SwitchOnRelayBCMPin},
-        $self->{SwitchOffRelayBCMPin});
+        $self->{SwitchOffRelayBCMPin}
+    );
 
     $self->{tempSensors} = []; #Prepare to load temp sensors to this data structure
 
     my @tempSensorDevices = HiPi::Interface::DS18X20->list_slaves();
-    die "No DS18X20-compatible temperature sensors detected on the one wire bus. Have you enabled the one-wire hardware device?"
+    Heater::Exception::Hardware::TemperatureSensor->throw(error => "No DS18X20-compatible temperature sensors detected on the one wire bus. Have you enabled the one-wire hardware device?")
         unless scalar(@tempSensorDevices);
 
     foreach my $device (@tempSensorDevices) {
@@ -71,13 +89,24 @@ sub new {
     }
 
     $self->{statistics} = Heater::Statistics->new($self);
+
+    #Reset the heater relay. This can accidentally be left in the 'On'-position due to running tests or fiddling with gpio outside this program.
+    $l->info("Turning off heater just in case");
+    $self->turnWarmingOff();
+    $self->setState(STATE_IDLE);
+
     return $self;
 }
 
 sub s {
-    return $_[0]->{statistics};
+    return shift->{statistics};
 }
 
+sub state {
+    return shift->{state};
+}
+
+#@DEPRECATED - preserved as useful documentation about where one-wire devices are in the system
 sub getTemperatureSensorIDs {
     my $oneWireDeviceDir = "/sys/bus/w1/devices";
     opendir(my $dirHandle, $oneWireDeviceDir)
@@ -95,30 +124,44 @@ sub getTemperatureSensorIDs {
 sub start {
     my ($self) = @_;
 
-    #Reset the heater relay. This can accidentally be left in the 'On'-position due to running tests or fiddling with gpio outside this program.
-    $self->turnWarmingOff();
+
     my $loopSleep = $self->_getMainLoopSleepDuration();
 
-    while (1) {
+    try {
+        while (1) {
+            $self->mainLoop();
 
-        $self->s()->writeStatistics();
-
-        my $hwInstruction = $self->measureState();
-
-        if ($hwInstruction == TURN_WARMING_ON) {
-            $self->turnWarmingOn();
-        } elsif ($hwInstruction == TURN_WARMING_OFF) {
-            $self->turnWarmingOff();
-        } elsif ($hwInstruction == EMERGENCY_STOP) {
-            $self->turnWarmingOff();
-        } elsif ($hwInstruction == NOOP) {
-            #Do nothing
-        } else {
-            die "start():> Unknown hardware instruction '$hwInstruction'";
+            Time::HiRes::usleep($loopSleep);
         }
+    } catch {
+        $l->fatal("Main loop crashed with error: ".Heater::Exception::toText($_));
+        $l->info("Turning off heater");
+        $self->turnWarmingOff();
+        die $_ unless (blessed($_));
+        $_->rethrow();
+    };
+}
 
-        Time::HiRes::usleep($loopSleep);
-    }
+sub mainLoop {
+    my ($self) = @_;
+
+    $self->setState(Heater::Transitions::nextStateTransition($self));
+
+    $self->enforceState();
+
+    $self->s()->writeStatistics();
+}
+
+=head2 enforceState
+
+Makes sure the hardware is set to the correct state.
+
+=cut
+
+sub enforceState {
+    my ($self) = @_:
+
+    $self->state->tick;
 }
 
 =head2 _getMainLoopSleepDuration
@@ -135,82 +178,9 @@ sub _getMainLoopSleepDuration {
     return 5000*1000;
 }
 
-=head2 measureState
-
-Does measurements and decides whether to start/stop heating. Returns the hardware instructions.
-
-Separating measurements from hardware actions make it easier to write tests for the heating logic.
-
-=cut
-
-sub measureState {
-    my ($self) = @_;
-
-    if ($self->reachedActivationTemp() && not($self->isWarming())) {
-        $self->turnWarmingOn();
-
-    } elsif ($self->isWarming() && $self->reachedTargetTemp()) {
-        $self->turnWarmingOff();
-
-    }
-}
-
-sub reachedTargetTemp {
-    my ($self) = @_;
-    my $temps = $self->temperatures();
-    my $tooCold = 0;
-    foreach my $temp (@$temps) {
-        $tooCold = 1 if $self->deltaToTargetTemp($temp) >= 0;
-    }
-    return 1 if (not($tooCold));
-}
-
-=head2 deltaToTargetTemp
-
-Calculates how many degrees apart the current temperature and the desired temperature are.
-Positive degrees means we must get more heating to reach safe temperatures.
-Negative degrees means we can endure that much cooling.
-
-=cut
-
-sub deltaToTargetTemp {
-    my ($self, $tempReading) = @_;
-    return _tempDelta($self->{TargetTemperature}, $tempReading);
-}
-
-=head2 reachedActivationTemp
-
-@RETURNS Boolean, true if any sensor reaches this threshold
-
-=cut
-
-sub reachedActivationTemp {
-    my ($self) = @_;
-    my $temps = $self->temperatures();
-    foreach my $temp (@$temps) {
-        return 1 if $self->deltaToActivationTemp($temp) >= 0;
-    }
-}
-
-=head2 deltaToActivationTemp
-
-Calculates how many degrees apart the current temperature and the minimum allowed temperature are.
-Positive degrees means we must get more heating to reach safe temperatures.
-Negative degrees means we can endure that much cooling.
-
-=cut
-
-sub deltaToActivationTemp {
-    my ($self, $tempReading) = @_;
-    return _tempDelta($self->{ActivationTemperature}, $tempReading);
-}
-
-sub _tempDelta {
-    return ($_[0]+1000) - ($_[1]+1000);
-}
-
 sub turnWarmingOn {
     my ($self) = @_;
+    $l->info("Turning warming on");
     $self->{warmerRelay}->switchOn();
     $self->{warmingIsOn} = 1;
     return $self;
@@ -218,6 +188,7 @@ sub turnWarmingOn {
 
 sub turnWarmingOff {
     my ($self) = @_;
+    $l->info("Turning warming off");
     $self->{warmerRelay}->switchOff();
     $self->{warmingIsOn} = 0;
     return $self;
@@ -242,13 +213,21 @@ sub temperatures {
     my @temps;
     foreach my $sensor (@$sensors) {
         my $t = $sensor->temperature();
-        push(@temps, ($withQuantum) ? $sensor->temperature().'℃' : $sensor->temperature());
+        Heater::Exception::Hardware::TemperatureSensor->throw(error => "Unknown temperature sensor reading", sensorId => $sensor->id()) unless(defined($t));
+        push(@temps, ($withQuantum) ? $t.'℃' : $t);
     }
+
+    unless (scalar(@$sensors) == $_[0]->{TemperatureSensorsCount}) {
+        Heater::Exception::Hardware->throw(error => "Expected to have '".$_[0]->{TemperatureSensorsCount}."' temperature sensors, but found only '".scalar(@$sensors)."'");
+    }
+
     return \@temps;
 }
 
 sub _addTemperatureSensor {
     my ($self, $params) = @_;
+    $l->info("Adding temperature sensor: ".$l->flatten($params));
+
     my $id;
     eval { $id = $params->{id}; };
     die ref($self)."->_addTemperatureSensor($params):> \$params->{id} is not defined! $@" unless $id;
@@ -269,60 +248,19 @@ sub getTemperatureSensors {
     return $_[0]->{tempSensors};
 }
 
-=head2 _checkPid
-
-Checks if this daemon is already listening to the given pins.
-If a daemon is using these pins, the existing daemon is killed and this
-daemon is started.
-
-TODO:: Duplicates emb-rtttl PID-mechanism
+=head2 setState
 
 =cut
 
-sub _checkPid {
-    my ($self) = @_;
-
-    $self->{pid} = getPid($self);
-    _killExistingProgram($self->{pid}) if $self->{pid}->alive();
-    $self->{pid}->touch();
-}
-
-=head2 killHeater
-
-A static method for killing a Heater-daemon matching the given configuration.
-
-=cut
-
-sub killHeater {
-    my ($conf) = @_;
-    _killExistingProgram(getPid($conf));
-}
-
-=head2 getPid
-
-A static method to get the Proc::PID::File of this daemon from the given config.
-
-=cut
-
-sub getPid {
-    my ($conf) = @_;
-    my $name = _makePidFileName($conf->{SwitchOnRelayBCMPin},
-                                $conf->{SwitchOffRelayBCMPin},
-    );
-    return Proc::PID::File->new({name => $name,
-                                 verify => $name,
-                                }
-    );
-}
-
-sub _killExistingProgram {
-    my ($pid) = @_;
-    kill 'INT', $pid->read();
-}
-
-sub _makePidFileName {
-    my (@pins) = @_;
-    return join('-',__PACKAGE__,@pins);
+sub setState {
+    my ($self, $stateName) = @_;
+    if ($self->state && $self->state->name ne $stateName) {
+        $self->{state} = Heater::State->new({
+            heater => $self,
+            name => $state,
+            startingTemps = $self->temperatures(),
+        });
+    }
 }
 
 1;

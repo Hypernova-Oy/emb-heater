@@ -38,6 +38,7 @@ sub getDefaultConf {
         StatisticsWriteInterval => -1,
         EmergencyShutdownTemperature => 85,
         EmergencyPassedTemperature => 70,
+        TemperatureSensorsCount => 2,
     };
 }
 

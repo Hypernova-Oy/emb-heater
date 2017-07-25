@@ -24,6 +24,9 @@ use DateTime;
 use DateTime::TimeZone;
 use Scalar::Util qw(weaken);
 
+use HeLog;
+my $l = bless({}, 'HeLog');
+
 sub new {
     my ($class, $heater) = @_;
 
@@ -31,14 +34,29 @@ sub new {
     weaken($self->{heater});
     bless $self, $class;
 
-    open(my $STATFILE, '>>:encoding(UTF-8)', $self->h()->{StatisticsLogFile}) or die $!;
-    $self->{STATFILE} = $STATFILE;
+    $self->{STATFILE} = $self->_getStatFileHandle();
 
     return $self;
 }
 
 sub h {
     return $_[0]->{heater};
+}
+
+=head2 _getStatFileHandle
+
+Overload from tests to inject a in-memory variable to collect logs.
+
+@RETURNS file handle to write statistics to
+
+=cut
+
+sub _getStatFileHandle {
+    my ($self) = @_;
+
+    $l->debug("Opening statistics file for writing: '".$self->h()->{StatisticsLogFile}."'");
+    open(my $STATFILE, '>>:encoding(UTF-8)', $self->h()->{StatisticsLogFile}) or die $!;
+    return $STATFILE;
 }
 
 my $tempReadingColWidth = 10;

@@ -10,6 +10,7 @@ use POSIX();
 use Data::Dumper;
 
 use Heater;
+use Heater::Config;
 
 my $help;
 my $verbose = 0;
@@ -32,7 +33,7 @@ GetOptions(
 my $usage = <<USAGE;
 
 A temperature sensor controlled relay program.
-See default configs at /etc/emb-heater/daemon.conf
+Set configs at /etc/emb-heater/daemon.conf
 
 
   -v --verbose        Defaults to 0, minimal output.
@@ -80,7 +81,7 @@ if ($help) {
 }
 
 
-my $conf = Heater::makeConfig(
+my $conf = Heater::Config::makeConfig(
               $onPin,$offPin,$activationTemp,$targetTemp,$tempCorrection,
               $statisticsWriteInterval,$statisticsFile
 );
