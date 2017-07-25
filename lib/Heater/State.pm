@@ -67,14 +67,14 @@ sub tick {
 
     my $stateName = $self->name();
 
-    if ($stateName eq Heater::STATE_IDLE) {
+    if ($stateName eq $Heater::STATE_IDLE) {
         $self->h->turnWarmingOff() if ($self->h->isWarming());
     }
-    elsif ($stateName eq Heater::STATE_WARMING) {
+    elsif ($stateName eq $Heater::STATE_WARMING) {
         $self->h->turnWarmingOn() if (!$self->h->isWarming());
         $self->checkTempHasRisen();
     }
-    elsif ($stateName eq Heater::STATE_EMERGENCY_SHUTDOWN) {
+    elsif ($stateName eq $Heater::STATE_EMERGENCY_SHUTDOWN) {
         $self->h->turnWarmingOff() if ($self->h->isWarming());
     }
     else {

@@ -13,16 +13,16 @@ my $build = Module::Build->new(
     },
 
     requires => {
-        'Modern::Perl' => '1',
-        'Time::HiRes' => '1.9',
-        'GPIO' => '0.01',
-        'GPIO::Relay::DoubleLatch' => '0.02',
-        'HiPi::Interface::DS18X20' => '0.22',
-        'Config::Simple' => '4',
-        'Sys::Syslog' => '0.33',
-        'Test::MockModule' => '0.11',
-        'Proc::PID::File' => '1.28',
-        'File::Temp' => '0.2304',
+        'Modern::Perl'             => '> 0.01',
+        'Time::HiRes'              => '> 0.01',
+        'GPIO'                     => '> 0.01',
+        'GPIO::Relay::DoubleLatch' => '> 0.01',
+        'HiPi::Interface::DS18X20' => '> 0.01',
+        'Config::Simple'           => '> 0.01',
+        'Test::MockModule'         => '> 0.01',
+        'Proc::PID::File'          => '> 0.01',
+        'File::Temp'               => '> 0.01',
+        'Exception::Class'         => '> 0.01',
     },
 
 );

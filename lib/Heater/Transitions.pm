@@ -41,16 +41,16 @@ sub nextStateTransition {
     my ($h) = @_;
 
     if (_reachedEmergencyShutdownTemp($h)) {
-        return Heater::STATE_EMERGENCY_SHUTDOWN;
+        return $Heater::STATE_EMERGENCY_SHUTDOWN;
     }
     if (_reachedEmergencyPassedTemp($h)) {
-        return Heater::STATE_WARMING;
+        return $Heater::STATE_WARMING;
     }
     if (_reachedTargetTemp($h)) {
-        return Heater::STATE_IDLE;
+        return $Heater::STATE_IDLE;
     }
     if (_reachedActivationTemp($h)) {
-        return Heater::STATE_WARMING;
+        return $Heater::STATE_WARMING;
     }
 }
 

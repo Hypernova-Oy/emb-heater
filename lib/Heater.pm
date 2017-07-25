@@ -30,7 +30,6 @@ use Scalar::Util qw(blessed);
 
 use Config::Simple;
 use HiPi::Interface::DS18X20;
-use Sys::Syslog qw(:standard :macros);
 use Proc::PID::File;
 use Time::HiRes;
 use DateTime;
@@ -49,11 +48,9 @@ my $l = bless({}, 'HeLog');
 
 use Heater::Exception::Hardware::TemperatureSensor;
 
-use constant {
-    STATE_WARMING            => 'W',
-    STATE_IDLE               => 'I',
-    STATE_EMERGENCY_SHUTDOWN => 'E',
-};
+$STATE_WARMING            = 'W';
+$STATE_IDLE               = 'I';
+$STATE_EMERGENCY_SHUTDOWN = 'E';
 
 
 =head1 SYNOPSIS

@@ -18,8 +18,6 @@ use utf8;
 binmode STDOUT, ':encoding(UTF-8)';
 binmode STDERR, ':encoding(UTF-8)';
 
-use Sys::Syslog qw(:standard :macros);
-use Time::HiRes;
 use DateTime;
 use DateTime::TimeZone;
 use Scalar::Util qw(weaken);
