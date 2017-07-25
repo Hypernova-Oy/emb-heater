@@ -40,23 +40,17 @@ Separating measurements from hardware actions make it easier to write tests for 
 sub nextStateTransition {
     my ($h) = @_;
 
-    
     if (_reachedEmergencyShutdownTemp($h)) {
-        return Heater::TRANSITION_TO_EMERGENCY_SHUTDOWN;
+        return Heater::STATE_EMERGENCY_SHUTDOWN;
     }
     if (_reachedEmergencyPassedTemp($h)) {
-        return Heater::TRANSITION_TO_WARMING;
+        return Heater::STATE_WARMING;
     }
     if (_reachedTargetTemp($h)) {
-        return Heater::TRANSITION_TO_IDLE;
+        return Heater::STATE_IDLE;
     }
-    if (_reachedActivationTemp($h))) {
-        return Heater::TRANSITION_TO_WARMING;
-    }
-
-    } elsif ($h->isWarming() && $h->reachedTargetTemp()) {
-        $h->turnWarmingOff();
-
+    if (_reachedActivationTemp($h)) {
+        return Heater::STATE_WARMING;
     }
 }
 

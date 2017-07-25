@@ -7,7 +7,6 @@ package HeLog;
 use Modern::Perl;
 use Carp qw(longmess);
 use Scalar::Util qw(blessed);
-use Data::Alias;
 use Data::Dumper;
 
 use Log::Log4perl;

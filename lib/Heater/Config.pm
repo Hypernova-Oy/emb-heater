@@ -24,6 +24,7 @@ use Config::Simple;
 use DateTime::TimeZone;
 
 #use HeLog; #We cannot use Log::Log4perl here, because the configuration hasn't been validated yet. Configuration controls logging. Die on errors instead.
+my $l = bless({}, 'HeLog');
 
 my $configFile = "/etc/emb-heater/daemon.conf";
 
@@ -40,7 +41,8 @@ sub configure {
     my ($params) = @_;
 
     $olConfig = _mergeConfig($params);
-    $l->debug("Using configurations: ".$l->flatten($config));
+    #Global config is set here. After this point logger can be used in this package.
+    $l->debug("Using configurations: ".$l->flatten($olConfig));
 
     my $tz = setTimeZone();
     $l->debug("Using time zone: $tz");
