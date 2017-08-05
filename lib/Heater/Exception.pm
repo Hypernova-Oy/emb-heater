@@ -2,6 +2,11 @@ package Heater::Exception;
 
 use Modern::Perl;
 
+use Scalar::Util qw(blessed weaken);
+use utf8;
+binmode(STDOUT, ':utf8');
+binmode(STDERR, ':utf8');
+
 ###  This is too scary to test! This might interfere with other modules in ways god only knows...
 ##Upgrade normal die-signals to Exception::Class
 #$SIG{__DIE__} = sub {
@@ -56,7 +61,7 @@ sub _toTextFromRef {
   my ($e) = @_;
 
   if (blessed($e)) {
-    return _toTextFromExceptionClass($e) if ($e->isa('Exception::Class'));
+    return _toTextFromExceptionClass($e) if ($e->isa('Heater::Exception'));
   }
   return _toTextFromHash($e);
   
@@ -66,6 +71,7 @@ sub _toTextFromRef {
 sub _toTextFromHash {
   my ($e) = @_;
   my @sb;
+  push(@sb, ref($e).' :> Unknown HASH Exception');
 
   my @k = sort keys %$e;
   foreach my $k (@k) {

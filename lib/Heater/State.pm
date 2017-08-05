@@ -17,8 +17,9 @@ use Modern::Perl;
 use utf8;
 binmode STDOUT, ':encoding(UTF-8)';
 binmode STDERR, ':encoding(UTF-8)';
+use Scalar::Util qw(blessed weaken);
 
-use Param::Validate;
+use Params::Validate;
 use DateTime;
 
 use HeLog;
@@ -32,11 +33,11 @@ use Heater::Exception::Hardware::HeatingElement;
 my %validations_new = (
   startingTemps => { callbacks => { 'arrayOfFloats' => sub {
     if (ref($_[0]) eq 'ARRAY') {
-        foreach my $f (@$_[0]) {
+        foreach my $f (@{$_[0]}) {
             return 0 unless $f =~ /^-?\d+\.?\d*$/;
         }
     }
-    return 0;
+    return 1;
   } },},
   name          => { optional => 0 },
   heater        => { isa => 'Heater'},
@@ -44,13 +45,14 @@ my %validations_new = (
   timestamp     => { optional => 1 },
 );
 sub new {
-    my ($class, $params) = @_;
-    Params::Validate::validate($params, \%validations_new);
+    my $class = shift;
+    my $params = Params::Validate::validate(@_, \%validations_new);
 
     my $self = {heater => $params->{heater}};
     weaken($self->{heater}); #Avoid circular referencing, which causes memory leaks
     bless $self, $class;
 
+    $self->{name} = $params->{name};
     $self->{ticks} = $params->{ticks} || 0;
     $self->{started} = $params->{timestamp} || time;
     $self->{startingTemps} = $params->{startingTemps};

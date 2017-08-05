@@ -52,7 +52,7 @@ sub initLogger {
         Log::Log4perl->init_and_watch($l4pf, 10);
     }
     my $verbose = $ENV{HEATER_LOG_LEVEL} || $config->{Verbose};
-    Log::Log4perl->appender_thresholds_adjust($verbose*-1);
+    Log::Log4perl->appender_thresholds_adjust($verbose*-1) if $verbose;
 }
 
 =head2 flatten

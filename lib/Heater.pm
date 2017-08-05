@@ -42,6 +42,7 @@ use Heater::Statistics;
 use Heater::Config;
 use Heater::Transitions;
 use Heater::Pid;
+use Heater::State;
 
 use HeLog;
 my $l = bless({}, 'HeLog');
@@ -142,7 +143,8 @@ sub start {
 sub mainLoop {
     my ($self) = @_;
 
-    $self->setState(Heater::Transitions::nextStateTransition($self));
+    my $nextStateName = Heater::Transitions::nextStateTransition($self);
+    $self->setState($nextStateName) if $nextStateName;
 
     $self->enforceState();
 
@@ -178,7 +180,7 @@ sub _getMainLoopSleepDuration {
 sub turnWarmingOn {
     my ($self) = @_;
     $l->info("Turning warming on");
-    $self->{warmerRelay}->switchOn();
+    $self->{warmerRelay}->switchOn() if (not($ENV{HEATER_TEST_MODE}));
     $self->{warmingIsOn} = 1;
     return $self;
 }
@@ -186,7 +188,7 @@ sub turnWarmingOn {
 sub turnWarmingOff {
     my ($self) = @_;
     $l->info("Turning warming off");
-    $self->{warmerRelay}->switchOff();
+    $self->{warmerRelay}->switchOff() if (not($ENV{HEATER_TEST_MODE}));
     $self->{warmingIsOn} = 0;
     return $self;
 }
@@ -230,7 +232,7 @@ sub _addTemperatureSensor {
     die ref($self)."->_addTemperatureSensor($params):> \$params->{id} is not defined! $@" unless $id;
 
     foreach my $sens (@{$self->{tempSensors}}) {
-        warn "_addTemperatureSensor():> Device '$id' already added?" if ($sens->{id} eq $id);
+        warn "_addTemperatureSensor():> Device '$id' already added?" if ($sens->id eq $id);
     }
 
     push ( @{$self->{tempSensors}},
@@ -251,7 +253,7 @@ sub getTemperatureSensors {
 
 sub setState {
     my ($self, $stateName) = @_;
-    if ($self->state && $self->state->name ne $stateName) {
+    if (not($self->state) || $self->state->name ne $stateName) {
         $self->{state} = Heater::State->new({
             heater => $self,
             name => $stateName,

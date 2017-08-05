@@ -27,7 +27,7 @@ sub reopenScalarHandle {
     my ($LOGFILEOUT, $pointerToScalar) = @_;
     $$pointerToScalar = '';
     close($LOGFILEOUT) if $LOGFILEOUT;
-    open($LOGFILEOUT, '>', $pointerToScalar) or die $!;
+    open($LOGFILEOUT, '>:encoding(UTF-8)', $pointerToScalar) or die $!;
     $LOGFILEOUT->autoflush ( 1 );
     select $LOGFILEOUT; #Use this as the default print target, so Console appender is redirected to this logfile
     return ($LOGFILEOUT, $pointerToScalar);
@@ -43,8 +43,8 @@ sub testState {
   my ($heater, $state, $isWarming) = @_;
 
   my $ok = 1;
-  $ok = is($state, $heater->getState(), "Heather is in the expected state '$state'") if $state;
-  $ok = is($isWarming, $heater->isWarming(), "Heather ".($isWarming ? 'is' : 'isnt')." warming") if(defined($isWarming));
+  $ok = is($heater->state->name, $state, "Heather is in the expected state '$state'") if $state;
+  $ok = is($heater->isWarming(), $isWarming, "Heather ".($isWarming ? 'is' : 'isnt')." warming") if(defined($isWarming));
   return $ok;
 }
 
@@ -57,10 +57,10 @@ sub testState {
 
 sub makeTempsMockerSub {
     my @temps = @_;
-    my $sensorIDs = $ENV{TEST_SENSOR_IDS};
+    my $sensors = $main::TEST_SENSORS;
     return sub {
-        return $temps[0] if ($_[0]->id eq $sensorIDs->[0]);
-        return $temps[1] if ($_[0]->id eq $sensorIDs->[1]);
+        return $temps[0] if ($_[0]->id eq $sensors->[0]->id);
+        return $temps[1] if ($_[0]->id eq $sensors->[1]->id);
         #return $temps[2] if ($_[0]->id eq $sensor3ID);
     };
 }

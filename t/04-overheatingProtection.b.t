@@ -4,16 +4,31 @@ use Modern::Perl;
 
 use Test::More;
 use Test::MockModule;
+use Try::Catch;
+use Scalar::Util qw(blessed weaken);
 
 use t::Examples;
 use t::Mocks;
 
 use Heater;
+use Heater::Exception;
 
 $ENV{HEATER_TEST_MODE} = 1;
 #$ENV{HEATER_LOG_LEVEL} = 6; #Full logging to stdout
 
+### Mock Heater::Statistics to write to a variable instead of a file
+my $statisticsInMemLog;
+my $moduleStatisticsOverload = Test::MockModule->new('Heater::Statistics');
+$moduleStatisticsOverload->mock('_getStatFileHandle', sub {
+  my ($FH, $ptr) = t::Mocks::reopenScalarHandle(undef, \$statisticsInMemLog);
+  return $FH;
+});
+
+
 my $heater = t::Examples::getHeater();
+our $TEST_SENSORS;
+
+
 
 subtest "Story about a Heater named Heather which stands guard obedient and stalwart through a year of changing weather conditions", \&storyOfHeather;
 sub storyOfHeather {
@@ -26,16 +41,8 @@ sub storyOfHeather {
   #
   #  Encompasses all state transitions defined in doc/Heater.png
 
-  my ($module, $sensors, $op, $statisticsInMemLog);
+  my ($module, $sensors, $op);
   $module = Test::MockModule->new('HiPi::Interface::DS18X20');
-
-
-  ### Mock Heater::Statistics to write to a variable instead of a file
-  my $moduleStatisticsOverload = Test::MockModule->new('Heater::Statistics');
-  $moduleStatisticsOverload->mock('_getStatFileHandle', sub {
-    my ($FH, $ptr) = t::Mocks::reopenScalarHandle(undef, \$statisticsInMemLog);
-    return $FH;
-  });
 
   eval {
 
@@ -44,13 +51,13 @@ sub storyOfHeather {
 
   ok($sensors = $heater->getTemperatureSensors(),
      "Given Heather has two temperature sensors, one for the PCB and the other for the heating element.");
-  $ENV{TEST_SENSOR_IDS} = $sensors;
+  $TEST_SENSORS = $sensors;
 
   ok(!$heater->isWarming(),
      "Given Heather is not warming by default");
 
   subtest "Scenario: Finnish summer has no cold, temperatures are stably high.", sub {
-    ok($module->mock('temperature', t::Mocks::makeTempsMockerSub(17, 17)), #Both sensors return +17℃
+    ok(! $module->mock('temperature', t::Mocks::makeTempsMockerSub(17, 17)), #Both sensors return +17℃
        "Given the ambient temperature is at +17");
 
     ok(newTickAndTestState($heater, $Heater::STATE_IDLE, 0),
@@ -59,7 +66,7 @@ sub storyOfHeather {
 
 
   subtest "Scenario: Finnish autumn is nice and dark, temperatures are stably ok, Heather doesn't understand humidity.", sub {
-    ok($module->mock('temperature', t::Mocks::makeTempsMockerSub(7, 7)),
+    ok(! $module->mock('temperature', t::Mocks::makeTempsMockerSub(7, 7)),
        "Given the ambient temperature is at +7");
 
     ok(newTickAndTestState($heater, $Heater::STATE_IDLE, 0),
@@ -68,67 +75,72 @@ sub storyOfHeather {
 
 
   subtest "Scenario: Finnish winter is merciless and cold, temperatures are deadly, Heather might care about humidity, if it wasn't so cold.", sub {
-    ok($module->mock('temperature', t::Mocks::makeTempsMockerSub(-17, -17)),
+    ok(! $module->mock('temperature', t::Mocks::makeTempsMockerSub(-17, -17)),
        "Given the ambient temperature is at -17");
     ok(newTickAndTestState($heater, $Heater::STATE_IDLE, 0),
        "Then Heather can wait patiently");
 
-    ok($module->mock('temperature', t::Mocks::makeTempsMockerSub(-21, -21)),
+    ok(! $module->mock('temperature', t::Mocks::makeTempsMockerSub(-21, -21)),
        "Given the ambient temperature drops to -21");
     ok(newTickAndTestState($heater, $Heater::STATE_WARMING, 1),
        "Then Heather must start heating");
 
-    ok($module->mock('temperature', t::Mocks::makeTempsMockerSub(-21, -16.8)),
+    ok(! $module->mock('temperature', t::Mocks::makeTempsMockerSub(-21, -16.8)),
        "Given the heater is heating and heating sensor reads -16.8, just below the heating stop threshold");
     ok(newTickAndTestState($heater, $Heater::STATE_WARMING, 1),
        "Then Heather keeps heating, because other sensors are still too cold");
 
-    ok($module->mock('temperature', t::Mocks::makeTempsMockerSub(-19, +10)),
+    ok(! $module->mock('temperature', t::Mocks::makeTempsMockerSub(-19, +10)),
        "Given the heater is heating and heating sensor reads +10");
     ok(newTickAndTestState($heater, $Heater::STATE_WARMING, 1),
        "Then Heather keeps heating, until all sensors are warm enough");
 
-    ok($module->mock('temperature', t::Mocks::makeTempsMockerSub(-16.98, +20)),
+    ok(! $module->mock('temperature', t::Mocks::makeTempsMockerSub(-16.98, +20)),
        "Given the heater is heating and heating sensor reads +20, other sensor -16.98, just below the heating stop threshold");
     ok(newTickAndTestState($heater, $Heater::STATE_IDLE, 0),
        "Then Heather stops heating");
 
-    ok($module->mock('temperature', t::Mocks::makeTempsMockerSub(-19, +10)),
+    ok(! $module->mock('temperature', t::Mocks::makeTempsMockerSub(-19, +10)),
        "Given Heather starts to get cold again, but not too cold");
     ok(newTickAndTestState($heater, $Heater::STATE_IDLE, 0),
        "Then Heather waits");
 
-    ok($module->mock('temperature', t::Mocks::makeTempsMockerSub(-21, +20)),
+    ok(! $module->mock('temperature', t::Mocks::makeTempsMockerSub(-21, +20)),
        "Given one sensor drops to -21");
     ok(newTickAndTestState($heater, $Heater::STATE_WARMING, 1),
        "Then Heather starts heating");
 
-    ok($module->mock('temperature', t::Mocks::makeTempsMockerSub(-22, +60)),
+    ok(! $module->mock('temperature', t::Mocks::makeTempsMockerSub(-22, +60)),
        "Given one sensor drops to -22, while Heather is warming really hard");
     ok(newTickAndTestState($heater, $Heater::STATE_WARMING, 1),
        "Then Heather keeps heating");
 
-    ok($module->mock('temperature', t::Mocks::makeTempsMockerSub(-21, +86)),
+    ok(! $module->mock('temperature', t::Mocks::makeTempsMockerSub(-21, +86)),
        "Given heater sensor rises to +86");
     ok(newTickAndTestState($heater, $Heater::STATE_EMERGENCY_SHUTDOWN, 0),
        "Then Heather emergency shuts down heating");
 
-    ok($module->mock('temperature', t::Mocks::makeTempsMockerSub(-21, +59)),
+    ok(! $module->mock('temperature', t::Mocks::makeTempsMockerSub(-21, +59)),
        "Given heater sensor drops to +59");
+    ok(newTickAndTestState($heater, $Heater::STATE_IDLE, 0),
+       "Then Heather recovers from emergency shutdown");
+
+    ok(! $module->mock('temperature', t::Mocks::makeTempsMockerSub(-21, +59)),
+       "Given heater sensor is still +59");
     ok(newTickAndTestState($heater, $Heater::STATE_WARMING, 1),
        "Then Heather starts heating");
 
-    ok($module->mock('temperature', t::Mocks::makeTempsMockerSub(-16, +88)),
+    ok(! $module->mock('temperature', t::Mocks::makeTempsMockerSub(-16, +88)),
        "Given heater sensor exceeds the emergency threshold and other sensors exceed the heating stop threshold");
     ok(newTickAndTestState($heater, $Heater::STATE_EMERGENCY_SHUTDOWN, 0),
        "Then Heather emergency shuts down heating");
 
-    ok($module->mock('temperature', t::Mocks::makeTempsMockerSub(-16, -16)),
-       "Given ambient temperature decreases and sensors adjust to it");
+    ok(! $module->mock('temperature', t::Mocks::makeTempsMockerSub(-16, -16)),
+       "Given ambient temperature sets to -16 and sensors adjust to it");
     ok(newTickAndTestState($heater, $Heater::STATE_IDLE, 0),
        "Then Heather patiently waits");
 
-    ok($module->mock('temperature', t::Mocks::makeTempsMockerSub(undef, -18)),
+    ok(! $module->mock('temperature', t::Mocks::makeTempsMockerSub(undef, -18)),
        "Given one sensor has malfunctioned");
     try {
       newTickAndTestState($heater, 'not tested', 'not tested'), #internal state tests are not executed because main loop crashes
@@ -136,27 +148,36 @@ sub storyOfHeather {
     } catch {
       is(ref($_), 'Heater::Exception::Hardware::TemperatureSensor',
          "Then Heather throws the expected hardware exception");
-      is($_->sensorId, $ENV{TEST_SENSOR_IDS}->[0]->id,
+      is($_->sensorId, $TEST_SENSORS->[0]->id,
          "And the expected sensor faulted");
     };
 
     ok(1, "-Heather is malfunctioning and waiting for maintenance-");
+
+    ok(! $module->mock('temperature', t::Mocks::makeTempsMockerSub(-25, -25)),
+       "Ambient temperature drops again to -25");
+
     ok($heater = t::Examples::getHeater(),
        "Given Heather is fixed and rebooted, the sensors are loaded in different order");
 
-    ok($module->mock('temperature', t::Mocks::makeTempsMockerSub(-25, -25)),
-       "Ambient temperature drops again");
+    ok($sensors = $heater->getTemperatureSensors(),
+       "Given Heather has two temperature sensors, one for the PCB and the other for the heating element.");
+    $TEST_SENSORS = $sensors;
+
+    ok(!$heater->isWarming(),
+       "Given Heather is not warming by default");
+
     ok(newTickAndTestState($heater, $Heater::STATE_WARMING, 1),
        "Then Heather starts warming");
 
-    ok($module->mock('temperature', t::Mocks::makeTempsMockerSub(+20, -16)),
+    ok(! $module->mock('temperature', t::Mocks::makeTempsMockerSub(+20, -16)),
        "Given warming is effective");
     ok(newTickAndTestState($heater, $Heater::STATE_IDLE, 0),
        "Then Heather stops warming");
   };
 
   subtest "Scenario: Finnish spring is wet, Heather likes it.", sub {
-    ok($module->mock('temperature', t::Mocks::makeTempsMockerSub(5, 6)),
+    ok(! $module->mock('temperature', t::Mocks::makeTempsMockerSub(5, 6)),
        "Given the ambient temperature is at +5");
 
     ok(newTickAndTestState($heater, $Heater::STATE_IDLE, 0),
@@ -164,7 +185,7 @@ sub storyOfHeather {
   };
 
   };
-  ok(0, $@) if $@;
+  ok(0, Heater::Exception::toText($@)) if $@;
 }
 
 

@@ -16,6 +16,8 @@ binmode STDERR, ':encoding(UTF-8)';
 use Try::Tiny;
 use Scalar::Util qw(blessed);
 
+use Heater::Exception::UnknownStateTransition;
+
 #use Heater; #This package is loaded from Heater and cannot be used standalone, resist the urge of unnecessary include-directives to avoid circular dependency loading issues.
 
 use HeLog;
@@ -35,16 +37,25 @@ Does measurements and decides whether to start/stop heating. Returns the new sta
 
 Separating measurements from hardware actions make it easier to write tests for the heating logic.
 
+@RETURNS 0 if there is no need to transition
+
 =cut
 
 sub nextStateTransition {
     my ($h) = @_;
+    my $currentState = $h->state->name;
+
+    if ($currentState eq $Heater::STATE_EMERGENCY_SHUTDOWN) {
+        if (_reachedEmergencyPassedTemp($h)) {
+            return $Heater::STATE_IDLE;
+        }
+        else {
+            return 0; #Only way to transition away from the emergency shutdown is via _reachedEmergencyPassedTemp()
+        }
+    }
 
     if (_reachedEmergencyShutdownTemp($h)) {
-        return $Heater::STATE_EMERGENCY_SHUTDOWN;
-    }
-    if (_reachedEmergencyPassedTemp($h)) {
-        return $Heater::STATE_WARMING;
+      return $Heater::STATE_EMERGENCY_SHUTDOWN;
     }
     if (_reachedTargetTemp($h)) {
         return $Heater::STATE_IDLE;
@@ -52,6 +63,11 @@ sub nextStateTransition {
     if (_reachedActivationTemp($h)) {
         return $Heater::STATE_WARMING;
     }
+    return 0;
+
+    #else {
+    #    Heater::Exception::UnknownStateTransition->throw(error => "Couldn't decide the next state transition.", previousState => $h->state->name);
+    #}
 }
 
 =head2 _reachedTargetTemp
@@ -70,7 +86,7 @@ sub _reachedTargetTemp {
         #Calculates how many degrees apart the current temperature and the desired temperature are.
         #Positive degrees means we must get more heating to reach safe temperatures.
         #Negative degrees means we can endure that much cooling.
-        if (_tempDelta($h->{TargetTemperature}, $temp) >= 0) {
+        if (_tempDelta($h->{TargetTemperature}, $temp) > 0) {
             return 0; #More heating is needed!
         }
     }

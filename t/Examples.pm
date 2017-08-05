@@ -30,8 +30,8 @@ use Heater;
 
 sub getDefaultConf {
     return {
-        SwitchOnRelayBCMPin => 23,
-        SwitchOffRelayBCMPin => 24,
+        SwitchOnRelayBCMPin => 24,
+        SwitchOffRelayBCMPin => 25,
         ActivationTemperature => -20,
         TargetTemperature => -17,
         TemperatureCorrection => 100,

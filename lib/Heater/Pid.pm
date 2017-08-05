@@ -67,13 +67,26 @@ A static method to get the Proc::PID::File of this daemon from the given config.
 
 sub getPid {
     my ($conf) = @_;
-    my $name = _makePidFileName($conf->{SwitchOnRelayBCMPin},
-                                $conf->{SwitchOffRelayBCMPin},
-    );
-    return Proc::PID::File->new({name => $name,
-                                 verify => $name,
-                                }
-    );
+
+    my $name;
+    if ($ENV{HEATER_TEST_MODE}) {
+        $name = 't/heater';
+        return Proc::PID::File->new({name => $name,
+                                     verify => $name,
+                                     dir => '.',
+                                    }
+               );
+    }
+    else {
+        $name = _makePidFileName($conf->{SwitchOnRelayBCMPin},
+                                 $conf->{SwitchOffRelayBCMPin},
+                );
+        return Proc::PID::File->new({name => $name,
+                                     verify => $name,
+                                     dir => '.',
+                                    }
+               );
+    }
 }
 
 sub _killExistingProgram {
@@ -84,7 +97,7 @@ sub _killExistingProgram {
 
 sub _makePidFileName {
     my (@pins) = @_;
-    return join('-',__PACKAGE__,@pins);
+    return join('-','heater',@pins);
 }
 
 1;

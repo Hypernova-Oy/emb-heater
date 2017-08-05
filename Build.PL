@@ -20,9 +20,11 @@ my $build = Module::Build->new(
         'HiPi::Interface::DS18X20' => '> 0.01',
         'Config::Simple'           => '> 0.01',
         'Test::MockModule'         => '> 0.01',
+        'Params::Validate'         => '> 0.01',
         'Proc::PID::File'          => '> 0.01',
         'File::Temp'               => '> 0.01',
         'Exception::Class'         => '> 0.01',
+        'Try::Catch'               => '> 0.01',
     },
 
 );

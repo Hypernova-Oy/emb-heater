@@ -64,10 +64,10 @@ sub writeStatistics {
 
     my $date = DateTime->now(time_zone => $ENV{TZ})->iso8601();
     my $warming = $self->h()->isWarming() ? 1 : 0;
-    my @temps = $self->h()->temperatures('type');
+    my $temps = $self->h()->temperatures('type');
 
     my @tempPrintables;
-    foreach my $temp (@temps) {
+    foreach my $temp (@$temps) {
         warn "Temperature reading '$temp' exceeds printable column size '$tempReadingColWidth', increase it!" if (length $temp > $tempReadingColWidth);
         push(@tempPrintables, sprintf("\%${tempReadingColWidth}s", $temp));
     }
