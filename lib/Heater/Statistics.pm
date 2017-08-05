@@ -60,6 +60,7 @@ sub _getStatFileHandle {
 my $tempReadingColWidth = 10;
 sub writeStatistics {
     my ($self) = @_;
+    $l->trace("Writing statistics") if $l->is_trace();
     my $STATFILE = $self->{STATFILE};
 
     my $date = DateTime->now(time_zone => $ENV{TZ})->iso8601();

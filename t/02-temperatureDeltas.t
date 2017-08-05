@@ -6,12 +6,22 @@ use Test::More;
 use Test::MockModule;
 
 use t::Examples;
+use t::Mocks;
 
 use Heater;
+use Heater::Transitions;
+
+$ENV{HEATER_TEST_MODE} = 1;
+#$ENV{HEATER_LOG_LEVEL} = 6; #Full logging to stdout
+
+
+### Mock Heater::Statistics to write to a variable instead of a file
+my $moduleStatisticsOverload = Test::MockModule->new('Heater::Statistics');
+my $statisticsInMemLog = '';
+t::Mocks::mockStatisticsFileWritingToScalar($moduleStatisticsOverload, \$statisticsInMemLog);
 
 
 my $heater = t::Examples::getHeater();
-
 
 
 subtest "Check correct heating activation and termination thresholds", \&deltaToTarget;
@@ -24,7 +34,7 @@ sub deltaToTarget {
 
   $module->mock('temperature', sub { return 20.0 });
 
-  $tempDeltaToTarget = $heater->deltaToTargetTemp();
+  $tempDeltaToTarget = Heater::Transitions::deltaToTargetTemp($heater);
   is($tempDeltaToTarget, -37, "We are '-37' degrees away to stop heating");
   ok($heater->reachedTargetTemp(), "We have reached our target temperature");
 

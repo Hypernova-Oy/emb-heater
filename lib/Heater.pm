@@ -129,6 +129,7 @@ sub start {
         while (1) {
             $self->mainLoop();
 
+            $l->trace("Sleeping '".($loopSleep/1000000)."s' after mainLoop()");
             Time::HiRes::usleep($loopSleep);
         }
     } catch {
@@ -142,6 +143,9 @@ sub start {
 
 sub mainLoop {
     my ($self) = @_;
+    $l->debug("Starting mainLoop()");
+
+    $self->flushTemperaturesCache();
 
     my $nextStateName = Heater::Transitions::nextStateTransition($self);
     $self->setState($nextStateName) if $nextStateName;
@@ -207,20 +211,27 @@ sub isWarming {
 =cut
 
 sub temperatures {
-    my $withQuantum = $_[1];
-    my $sensors = $_[0]->getTemperatureSensors();
-    my @temps;
-    foreach my $sensor (@$sensors) {
-        my $t = $sensor->temperature();
-        Heater::Exception::Hardware::TemperatureSensor->throw(error => "Unknown temperature sensor reading", sensorId => $sensor->id()) unless(defined($t));
-        push(@temps, ($withQuantum) ? $t.'℃' : $t);
+    my ($self, $withQuantum) = @_;
+    my $sensors = $self->getTemperatureSensors();
+    my $temps = $self->getCachedTemperaturesReading();
+
+    unless ($temps) {
+        $temps = [];
+        foreach my $sensor (@$sensors) {
+            my $t = $sensor->temperature();
+            Heater::Exception::Hardware::TemperatureSensor->throw(error => "Unknown temperature sensor reading", sensorId => $sensor->id()) unless(defined($t));
+            push(@$temps, $t);
+        }
+        $self->cacheTemperaturesReading($temps);
     }
+
+    @$temps = map {$_.'℃'}  @$temps if $withQuantum;
 
     unless (scalar(@$sensors) == $_[0]->{TemperatureSensorsCount}) {
         Heater::Exception::Hardware->throw(error => "Expected to have '".$_[0]->{TemperatureSensorsCount}."' temperature sensors, but found only '".scalar(@$sensors)."'");
     }
 
-    return \@temps;
+    return $temps;
 }
 
 sub _addTemperatureSensor {
@@ -245,6 +256,52 @@ sub _addTemperatureSensor {
 }
 sub getTemperatureSensors {
     return $_[0]->{tempSensors};
+}
+
+=head2 cacheTemperaturesReading
+
+Reading the temperature is slow, and can possibly cause the i2c channel to freeze if using long
+cables and there is a bit transmission error.
+So we cache the result to avoid unnecessary communication.
+
+=cut
+
+sub cacheTemperaturesReading {
+    my ($self, $readings) = @_;
+    $self->{_tempCache} = [Time::HiRes::time*1000, $readings]; #Caching time in millis
+}
+
+=head2 flushTemperaturesCache
+
+Clear the temperature cache, so a new value can be fetched.
+
+=cut
+
+sub flushTemperaturesCache {
+    shift->{_tempCache} = undef;
+}
+
+=head2 getCachedTemperaturesReading
+
+Returns the cached value, or undef.
+Checks for cache expiration, and expires expired cache record.
+
+=cut
+
+sub getCachedTemperaturesReading {
+    my ($self) = @_;
+    my $cacheExpiration = 1000; #milliseconds
+    if (my $c = $self->{_tempCache}) {
+        if ($c->[0] + $cacheExpiration < Time::HiRes::time*1000) {
+            $self->flushTemperaturesCache();
+            return undef;
+        }
+        return $c->[1];
+    }
+    else {
+        $l->trace("Temperature cache miss");
+    }
+    return undef;
 }
 
 =head2 setState

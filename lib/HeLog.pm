@@ -55,7 +55,6 @@ sub initLogger {
     }
     unless ($environmentAdjustmentDone) {
         my $verbose = $ENV{HEATER_LOG_LEVEL} || $config->{Verbose};
-        print "VERBOSE $verbose VERBOSE\n";
         Log::Log4perl->appender_thresholds_adjust($verbose*-1) if $verbose;
         $environmentAdjustmentDone = 1;
     }

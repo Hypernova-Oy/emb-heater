@@ -25,10 +25,14 @@ use Modern::Perl;
 #Public modules
 use Storable;
 
+use HeLog;
+my $l = bless({}, 'HeLog');
+
 sub forkExec {
     my ($cmd) = @_;
     my $pid = fork();
     if ($pid == 0) { #I am a child
+        $l->info("Forking Heater-process with command: $cmd");
         exec $cmd;
         exit 0;
     }

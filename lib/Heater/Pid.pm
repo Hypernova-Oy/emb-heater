@@ -83,7 +83,6 @@ sub getPid {
                 );
         return Proc::PID::File->new({name => $name,
                                      verify => $name,
-                                     dir => '.',
                                     }
                );
     }

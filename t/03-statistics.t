@@ -1,6 +1,9 @@
 #!/usr/bin/perl
 
 use Modern::Perl;
+use utf8;
+binmode(STDOUT, ':utf8');
+binmode(STDERR, ':utf8');
 
 use Test::More;
 use Test::MockModule;
@@ -13,6 +16,7 @@ use t::IPC;
 
 use Heater;
 use Heater::Config;
+use Heater::Pid;
 
 
 my $heaterDaemonName = 'heater';
@@ -35,7 +39,7 @@ sub monitorStatistics {
   $tempFile = File::Temp->new();
   $conf->{StatisticsLogFile} = $tempFile->filename;
   t::IPC::forkExec(t::Examples::getDaemonizingCommand( $conf ));
-  sleep 1; #We need extra sleep because of the slow temperature reading.
+  sleep 5; #We need extra sleep because of the slow temperature reading.
 
   #We should start receiving statistical entries rapidly.
   subtest "Confirm statistical entry accuracy", sub {
@@ -53,9 +57,9 @@ sub monitorStatistics {
   ok(scalar(@lines), "We got '".scalar(@lines)."' temperature readings already!");
 
   #Stop the daemon
-  Heater::killHeater($conf);
+  Heater::Pid::killHeater($conf);
   sleep 1; #Give some time to gracefully terminate
-  ok(! Heater::getPid($conf)->alive(), "Heater is killed");
+  ok(! Heater::Pid::getPid($conf)->alive(), "Heater is killed");
 
 }
 
