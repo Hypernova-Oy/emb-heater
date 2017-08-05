@@ -5,7 +5,7 @@ use Modern::Perl;
 use Exception::Class (
     'Heater::Exception::UnknownStateTransition' => {
         isa => 'Heater::Exception',
-        fields => qw(previousState),
+        fields => ['previousState'],
     },
 );
 

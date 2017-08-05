@@ -13,6 +13,8 @@ use Log::Log4perl;
 our @ISA = qw(Log::Log4perl);
 Log::Log4perl->wrapper_register(__PACKAGE__);
 
+my $environmentAdjustmentDone; #Adjust all appenders only once
+
 sub AUTOLOAD {
     my $l = shift;
     my $method = our $AUTOLOAD;
@@ -51,8 +53,12 @@ sub initLogger {
     } else {
         Log::Log4perl->init_and_watch($l4pf, 10);
     }
-    my $verbose = $ENV{HEATER_LOG_LEVEL} || $config->{Verbose};
-    Log::Log4perl->appender_thresholds_adjust($verbose*-1) if $verbose;
+    unless ($environmentAdjustmentDone) {
+        my $verbose = $ENV{HEATER_LOG_LEVEL} || $config->{Verbose};
+        print "VERBOSE $verbose VERBOSE\n";
+        Log::Log4perl->appender_thresholds_adjust($verbose*-1) if $verbose;
+        $environmentAdjustmentDone = 1;
+    }
 }
 
 =head2 flatten

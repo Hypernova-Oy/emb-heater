@@ -104,7 +104,8 @@ sub started {
     return shift->{started};
 }
 sub setStarted {
-    shift->{started} = shift;
+    my ($self, $started) = @_;
+    $self->{started} = $started;
 }
 
 sub startingTemperatures {
@@ -118,7 +119,7 @@ sub checkTempHasRisen {
     #If Heater has been heating for more than 60 seconds, check that the temperature has significantly risen since the start of heating.
     return undef unless ($heatingDuration > 60);
 
-    my $mhe = $self->h->{MinimumHeatingEfficiency};
+    my $mhe = $self->h->{MinimumHeatingEfficiency} / 1000; #Convert milliCelsius to Celsius
     my $expectedTempRise = $mhe * $heatingDuration/60;
     my $newTemps = $self->h->temperatures();
     my $oldTemps = $self->startingTemperatures();
@@ -126,10 +127,14 @@ sub checkTempHasRisen {
     my $anySensorRegistersMinimumTemperatureRise = 0;
     my $biggestMeasuredTempRise;
     for (my $i=0 ; $i<scalar(@$oldTemps) ; $i++) {
+        $l->debug("Comparing \$oldTemp => '".$oldTemps->[$i]."' to \$newTemp => '".$newTemps->[$i]."', \$expectedTempRise => '$expectedTempRise'.") if $l->is_debug();
         #If the expected minimum temperature rise is higher than the actual measured temperature, hardware is dysfunctional.
         $anySensorRegistersMinimumTemperatureRise = 1 if (($oldTemps->[$i] + $expectedTempRise) <= $newTemps->[$i]);
-        $biggestMeasuredTempRise = $oldTemps->[$i] - $newTemps->[$i] if (not(defined($biggestMeasuredTempRise)) || ($oldTemps->[$i] - $newTemps->[$i]) > $biggestMeasuredTempRise);
+        $biggestMeasuredTempRise = $newTemps->[$i] - $oldTemps->[$i]
+                                       if (not(defined($biggestMeasuredTempRise)) ||
+                                          ($newTemps->[$i] - $oldTemps->[$i]) > $biggestMeasuredTempRise);
     }
+    $l->debug("Checked heating efficiency: \$biggestMeasuredTempRise => '$biggestMeasuredTempRise', \$heatingDuration => '$heatingDuration'") if $l->is_debug();
     Heater::Exception::Hardware::HeatingElement->throw(
             error => "Heater isn't performing as expected",
             expectedTemperatureRise => $expectedTempRise,

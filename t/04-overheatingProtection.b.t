@@ -17,12 +17,9 @@ $ENV{HEATER_TEST_MODE} = 1;
 #$ENV{HEATER_LOG_LEVEL} = 6; #Full logging to stdout
 
 ### Mock Heater::Statistics to write to a variable instead of a file
-my $statisticsInMemLog;
 my $moduleStatisticsOverload = Test::MockModule->new('Heater::Statistics');
-$moduleStatisticsOverload->mock('_getStatFileHandle', sub {
-  my ($FH, $ptr) = t::Mocks::reopenScalarHandle(undef, \$statisticsInMemLog);
-  return $FH;
-});
+my $statisticsInMemLog = '';
+t::Mocks::mockStatisticsFileWritingToScalar($moduleStatisticsOverload, \$statisticsInMemLog);
 
 
 my $heater = t::Examples::getHeater();

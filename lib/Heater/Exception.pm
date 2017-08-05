@@ -14,9 +14,9 @@ binmode(STDERR, ':utf8');
 #};
 
 use Exception::Class (
-  'Exception::Base' => {
-    description => 'All die-signals are forced to this exception class',
-  },
+#  'Exception::Base' => {
+#    description => 'All die-signals are forced to this exception class',
+#  },
   'Heater::Exception' => {
     description => 'Heater exceptions base class',
   },
