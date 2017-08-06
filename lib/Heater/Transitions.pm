@@ -23,6 +23,8 @@ use Heater::Exception::UnknownStateTransition;
 use HeLog;
 my $l = bless({}, 'HeLog');
 
+
+
 =head1 SYNOPSIS
 
 This is a static extension class to Heater.pm
@@ -30,6 +32,14 @@ This is a static extension class to Heater.pm
 This encapsulates all state transition logic.
 
 =cut
+
+
+## Save calculated deltas here, used mainly for testing the subroutines did what was expected.
+## Don't write to them directly!!
+our $deltaToTargetTemperature;
+our $deltaToActivationTemperature;
+our $deltaToEmergencyShutdownTemperature;
+our $deltaToEmergencyPassedTemperature;
 
 =head2 nextStateTransition
 
@@ -89,7 +99,7 @@ sub _reachedTargetTemp {
         #Calculates how many degrees apart the current temperature and the desired temperature are.
         #Positive degrees means we must get more heating to reach safe temperatures.
         #Negative degrees means we can endure that much cooling.
-        my $deltaToTargetTemperature = _tempDelta($h->{TargetTemperature}, $temp);
+        $deltaToTargetTemperature = _tempDelta($h->{TargetTemperature}, $temp);
         $l->trace("\$deltaToTargetTemperature => '".sprintf("%7.3f",$deltaToTargetTemperature)."'");
         if ($deltaToTargetTemperature > 0) {
             return 0; #More heating is needed!
@@ -114,7 +124,7 @@ sub _reachedActivationTemp {
         #Calculates how many degrees apart the current temperature and the minimum allowed temperature are.
         #Positive degrees means we must get more heating to reach safe temperatures.
         #Negative degrees means we can endure that much cooling.
-        my $deltaToActivationTemperature = _tempDelta($h->{ActivationTemperature}, $temp);
+        $deltaToActivationTemperature = _tempDelta($h->{ActivationTemperature}, $temp);
         $l->trace("\$deltaToActivationTemperature => '".sprintf("%7.3f",$deltaToActivationTemperature)."'");
         return 1 if ($deltaToActivationTemperature >= 0);
     }
@@ -134,7 +144,7 @@ sub _reachedEmergencyShutdownTemp {
     my $temps = $self->temperatures();
     foreach my $temp (@$temps) {
         #Return if temperature is higher or equal than the given threshold
-        my $deltaToEmergencyShutdownTemperature = _tempDelta($self->{EmergencyShutdownTemperature}, $temp);
+        $deltaToEmergencyShutdownTemperature = _tempDelta($self->{EmergencyShutdownTemperature}, $temp);
         $l->trace("\$deltaToEmergencyShutdownTemperature => '".sprintf("%7.3f",$deltaToEmergencyShutdownTemperature)."'");
         return 1 if ($deltaToEmergencyShutdownTemperature <= 0);
     }
@@ -154,7 +164,7 @@ sub _reachedEmergencyPassedTemp {
     my $temps = $self->temperatures();
     foreach my $temp (@$temps) {
         #Return if temperature is higher than the given threshold
-        my $deltaToEmergencyPassedTemperature = _tempDelta($self->{EmergencyPassedTemperature}, $temp);
+        $deltaToEmergencyPassedTemperature = _tempDelta($self->{EmergencyPassedTemperature}, $temp);
         $l->trace("\$deltaToEmergencyPassedTemperature => '".sprintf("%7.3f",$deltaToEmergencyPassedTemperature)."'");
         return 0 if ($deltaToEmergencyPassedTemperature < 0);
     }

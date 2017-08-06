@@ -4,8 +4,8 @@ use Modern::Perl;
 
 use Scalar::Util qw(blessed weaken);
 use utf8;
-binmode(STDOUT, ':utf8');
-binmode(STDERR, ':utf8');
+binmode STDOUT, ':encoding(UTF-8)';
+binmode STDERR, ':encoding(UTF-8)';
 
 ###  This is too scary to test! This might interfere with other modules in ways god only knows...
 ##Upgrade normal die-signals to Exception::Class

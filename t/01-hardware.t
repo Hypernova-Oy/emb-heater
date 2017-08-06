@@ -10,6 +10,10 @@ use Test::More;
 use t::Examples;
 
 use Heater;
+use Heater::Exception;
+
+
+my $heater = t::Examples::getHeater();
 
 
 print "These are manual tests and there is no convenient way of automatically confirming that the relay is actually working.\n";
@@ -17,15 +21,13 @@ print "Connect the relay on to GPIO pin 16 and relay off to GPIO pin 18";
 print "\n\n";
 print "Test begins...\n";
 
-
-my $heater = t::Examples::getHeater();
-
+eval {
 
 subtest "Testing temperature sensor", \&tempSensor;
 sub tempSensor {
 
-  my @$tempSensorIds = Heater::getTemperatureSensorIDs();
-  ok(scalar(@$tempSensorId), "Found '".scalar(@$tempSensorIds)."' temperature sensors.");
+  my $sensors = $heater->getTemperatureSensors();
+  ok(scalar(@$sensors), "Found '".scalar(@$sensors)."' temperature sensors.");
 
   my $temps = $heater->temperatures('withQuantum');
   my $tempsString = join(", ", @$temps);
@@ -33,7 +35,6 @@ sub tempSensor {
   like($tempsString, qr/℃/, "Temperature reading with a quantifier");
 
 }
-
 
 subtest "Testing relay", \&relay;
 sub relay {
@@ -66,9 +67,14 @@ sub relayWithTemp {
     my $st = $startingTemps->[$i];
     my $et = $endingTemps->[$i];
     my $s = $sensors->[$i];
-    ok($et > $st, "Ending temperature is higher than starting temperature for sensor '".$s->{id}."'.");
+    ok($et > $st, "Ending temperature is higher than starting temperature for sensor '".$s->id."'.");
   }
 }
 
+};
+if ($@) {
+  ok(0, Heater::Exception::toText($@)) if $@;
+}
+$heater->turnWarmingOff(); #Make sure the heater is turned off
 
 done_testing;
