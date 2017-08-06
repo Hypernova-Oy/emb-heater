@@ -269,6 +269,7 @@ So we cache the result to avoid unnecessary communication.
 sub cacheTemperaturesReading {
     my ($self, $readings) = @_;
     $self->{_tempCache} = [Time::HiRes::time*1000, $readings]; #Caching time in millis
+    $l->trace("Cached temperature readings '@$readings'");
 }
 
 =head2 flushTemperaturesCache
@@ -293,6 +294,7 @@ sub getCachedTemperaturesReading {
     my $cacheExpiration = 1000; #milliseconds
     if (my $c = $self->{_tempCache}) {
         if ($c->[0] + $cacheExpiration < Time::HiRes::time*1000) {
+            $l->trace("Cached temperature readings expired");
             $self->flushTemperaturesCache();
             return undef;
         }

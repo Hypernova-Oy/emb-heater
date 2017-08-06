@@ -9,6 +9,7 @@ use Carp qw(longmess);
 use Scalar::Util qw(blessed);
 use Data::Dumper;
 
+#use Log::Log4perl qw(:easy);
 use Log::Log4perl;
 our @ISA = qw(Log::Log4perl);
 Log::Log4perl->wrapper_register(__PACKAGE__);
@@ -30,7 +31,9 @@ sub AUTOLOAD {
 
 sub get_logger {
     initLogger() unless Log::Log4perl->initialized();
-    return Log::Log4perl->get_logger();
+    my $l = Log::Log4perl->get_logger();
+    $l->level(_levelToLog4perlLevelInt($ENV{HEATER_LOG_LEVEL})) if $ENV{HEATER_LOG_LEVEL};
+    return $l;
 }
 
 sub initLogger {
@@ -49,15 +52,36 @@ sub initLogger {
 #sleep 1;
 
     if ($ENV{HEATER_TEST_MODE}) {
-        Log::Log4perl->easy_init;
+        Log::Log4perl->easy_init({level => _levelToLog4perlLevelInt($ENV{HEATER_LOG_LEVEL} || 'TRACE'),
+                                  utf8 => 1,
+                                 });
     } else {
         Log::Log4perl->init_and_watch($l4pf, 10);
     }
-    unless ($environmentAdjustmentDone) {
-        my $verbose = $ENV{HEATER_LOG_LEVEL} || $config->{Verbose};
-        Log::Log4perl->appender_thresholds_adjust($verbose*-1) if $verbose;
-        $environmentAdjustmentDone = 1;
-    }
+}
+
+=head2 _levelToLog4perlLevelInt
+
+There is a bug in Log4perl, where loading
+    use Log::Log4perl qw(:easy);
+to namespace in this file causes
+    Deep recursion on subroutine "Log::Log4perl::get_logger" at /usr/share/perl5/Log/Log4perl.pm line 339, <FH> line 92.
+
+Work around by not importing log levels, and manually duplicating them here.
+see /usr/share/perl5/Log/Log4perl/Level.pm for level integers
+
+=cut
+
+sub _levelToLog4perlLevelInt {
+    return 0             if $_[0] =~ /ALL/i;
+    return 5000          if $_[0] =~ /TRACE/i;
+    return 10000         if $_[0] =~ /DEBUG/i;
+    return 20000         if $_[0] =~ /INFO/i;
+    return 30000         if $_[0] =~ /WARN/i;
+    return 40000         if $_[0] =~ /ERROR/i;
+    return 50000         if $_[0] =~ /FATAL/i;
+    return (2 ** 31) - 1 if $_[0] =~ /OFF/i;  #presumably INT MAX
+    die "_levelToLog4perlLevelInt($_[0]):> Unknown log level $_[0].".($ENV{HEATER_LOG_LEVEL} ? " Log level set in \$ENV{HEATER_LOG_LEVEL} => '$ENV{HEATER_LOG_LEVEL}'" : "");
 }
 
 =head2 flatten

@@ -44,30 +44,33 @@ Separating measurements from hardware actions make it easier to write tests for 
 sub nextStateTransition {
     my ($h) = @_;
     my $currentState = $h->state->name;
+    my $newState;
 
     if ($currentState eq $Heater::STATE_EMERGENCY_SHUTDOWN) {
         if (_reachedEmergencyPassedTemp($h)) {
-            return $Heater::STATE_IDLE;
+            $newState = $Heater::STATE_IDLE;
         }
         else {
-            return 0; #Only way to transition away from the emergency shutdown is via _reachedEmergencyPassedTemp()
+            $newState = 0; #Only way to transition away from the emergency shutdown is via _reachedEmergencyPassedTemp()
         }
     }
 
-    if (_reachedEmergencyShutdownTemp($h)) {
-      return $Heater::STATE_EMERGENCY_SHUTDOWN;
+    elsif (_reachedEmergencyShutdownTemp($h)) {
+        $newState = $Heater::STATE_EMERGENCY_SHUTDOWN;
     }
-    if (_reachedTargetTemp($h)) {
-        return $Heater::STATE_IDLE;
+    elsif (_reachedTargetTemp($h)) {
+        $newState = $Heater::STATE_IDLE;
     }
-    if (_reachedActivationTemp($h)) {
-        return $Heater::STATE_WARMING;
+    elsif (_reachedActivationTemp($h)) {
+        $newState = $Heater::STATE_WARMING;
     }
-    return 0;
-
     #else {
     #    Heater::Exception::UnknownStateTransition->throw(error => "Couldn't decide the next state transition.", previousState => $h->state->name);
     #}
+    $newState = 0 unless(defined($newState));
+
+    $l->debug("Next state transition is '$newState'");
+    return $newState;
 }
 
 =head2 _reachedTargetTemp
@@ -86,7 +89,9 @@ sub _reachedTargetTemp {
         #Calculates how many degrees apart the current temperature and the desired temperature are.
         #Positive degrees means we must get more heating to reach safe temperatures.
         #Negative degrees means we can endure that much cooling.
-        if (_tempDelta($h->{TargetTemperature}, $temp) > 0) {
+        my $deltaToTargetTemperature = _tempDelta($h->{TargetTemperature}, $temp);
+        $l->trace("\$deltaToTargetTemperature => '".sprintf("%7.3f",$deltaToTargetTemperature)."'");
+        if ($deltaToTargetTemperature > 0) {
             return 0; #More heating is needed!
         }
     }
@@ -109,7 +114,9 @@ sub _reachedActivationTemp {
         #Calculates how many degrees apart the current temperature and the minimum allowed temperature are.
         #Positive degrees means we must get more heating to reach safe temperatures.
         #Negative degrees means we can endure that much cooling.
-        return 1 if (_tempDelta($h->{ActivationTemperature}, $temp) >= 0);
+        my $deltaToActivationTemperature = _tempDelta($h->{ActivationTemperature}, $temp);
+        $l->trace("\$deltaToActivationTemperature => '".sprintf("%7.3f",$deltaToActivationTemperature)."'");
+        return 1 if ($deltaToActivationTemperature >= 0);
     }
     return 0;
 }
@@ -127,7 +134,9 @@ sub _reachedEmergencyShutdownTemp {
     my $temps = $self->temperatures();
     foreach my $temp (@$temps) {
         #Return if temperature is higher or equal than the given threshold
-        return 1 if (_tempDelta($self->{EmergencyShutdownTemperature}, $temp) <= 0);
+        my $deltaToEmergencyShutdownTemperature = _tempDelta($self->{EmergencyShutdownTemperature}, $temp);
+        $l->trace("\$deltaToEmergencyShutdownTemperature => '".sprintf("%7.3f",$deltaToEmergencyShutdownTemperature)."'");
+        return 1 if ($deltaToEmergencyShutdownTemperature <= 0);
     }
     return 0;
 }
@@ -145,7 +154,9 @@ sub _reachedEmergencyPassedTemp {
     my $temps = $self->temperatures();
     foreach my $temp (@$temps) {
         #Return if temperature is higher than the given threshold
-        return 0 if (_tempDelta($self->{EmergencyPassedTemperature}, $temp) < 0);
+        my $deltaToEmergencyPassedTemperature = _tempDelta($self->{EmergencyPassedTemperature}, $temp);
+        $l->trace("\$deltaToEmergencyPassedTemperature => '".sprintf("%7.3f",$deltaToEmergencyPassedTemperature)."'");
+        return 0 if ($deltaToEmergencyPassedTemperature < 0);
     }
     return 1;
 }
