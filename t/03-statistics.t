@@ -47,13 +47,14 @@ sub monitorStatistics {
     $statsRow = $tempFile->getline();
 
     like($statsRow, qr/^${todayYmd}T\d{2}:\d{2}:\d{2} - /u, "Temperature statistics has the correct YMD");
-    like($statsRow, qr/(\s+-?\d+\.\d+\xE2\x84\x83 &?)+- warming=\d$/u, "Temperature statistics has a sane temperature reading");
+    like($statsRow, qr/(\s+[+-]\d+\.\d+\s*\xE2\x84\x83\s*&?)+, warm=\d, state=\w$/u, "Temperature statistics has a sane temperature reading");
   };
 
   sleep 3; #Sleep a bit for the daemon to generate more statistics rows.
   $tempFile->seek(0,0); #rewind the pointer
   @lines = $tempFile->getlines(); #Get all lines in the temporary statistics file
   ok(scalar(@lines), "We got '".scalar(@lines)."' temperature readings already!");
+  ok(scalar(@lines) > 2 && scalar(@lines) < 5, "Internal statistics writing interval works."); #This mostly tests that the mainLoop sleeps very little when running tests, and the statistics interval is waited correctly.
 
   #Stop the daemon
   Heater::Pid::killHeater($conf);

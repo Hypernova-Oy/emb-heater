@@ -105,6 +105,9 @@ my $unsigned_int_regexp = '\d+';
 sub _isConfigValid() {
     my ($c) = @_;
 
+    unless ($c->{MainLoopInterval} && $c->{MainLoopInterval} =~ /^$signed_float_regexp$/) {
+        die("MainLoopInterval is not a valid signed float");
+    }
     unless ($c->{ActivationTemperature} && $c->{ActivationTemperature} =~ /^$signed_float_regexp$/) {
         die("ActivationTemperature is not a valid signed float");
     }
@@ -172,6 +175,7 @@ sub makeConfig {
     $conf{TemperatureSensorsCount} = $_[9] if $_[9];
     $conf{MinimumHeatingEfficiency} = $_[10] if $_[10];
     $conf{Verbose}                  = $_[11] if $_[11];
+    $conf{MainLoopInterval}         = $_[12] if $_[12];
     return \%conf;
 }
 
@@ -193,4 +197,34 @@ sub setTimeZone {
     return $ENV{TZ};
 }
 
+
+
+
+
+
+
+#############################
+###### Config accessors #####
+#############################
+
+sub getSwitchOnRelayBCMPin {
+    return shift->{SwitchOnRelayBCMPin};
+}
+sub getSwitchOffRelayBCMPin {
+    return shift->{SwitchOffRelayBCMPin};
+}
+sub getTemperatureCorrection {
+    return shift->{TemperatureCorrection};
+}
+sub getTemperatureSensorsCount {
+    return shift->{TemperatureSensorsCount};
+}
+sub getStatisticsWriteInterval {
+    return shift->{StatisticsWriteInterval};
+}
+sub getMainLoopInterval {
+    return shift->{MainLoopInterval};
+}
+
 1;
+

@@ -57,7 +57,7 @@ sub _getStatFileHandle {
     return $STATFILE;
 }
 
-my $tempReadingColWidth = 10;
+my $tempReadingColWidth = 8;
 sub writeStatistics {
     my ($self) = @_;
     $l->trace("Writing statistics") if $l->is_trace();
@@ -65,15 +65,12 @@ sub writeStatistics {
 
     my $date = DateTime->now(time_zone => $ENV{TZ})->iso8601();
     my $warming = $self->h()->isWarming() ? 1 : 0;
-    my $temps = $self->h()->temperatures('type');
+    my $temps = $self->h()->temperatures();
+    my $stateName = $self->h()->state->name;
 
-    my @tempPrintables;
-    foreach my $temp (@$temps) {
-        warn "Temperature reading '$temp' exceeds printable column size '$tempReadingColWidth', increase it!" if (length $temp > $tempReadingColWidth);
-        push(@tempPrintables, sprintf("\%${tempReadingColWidth}s", $temp));
-    }
+    @$temps = map {sprintf("\%-+#${tempReadingColWidth}.3f",$_).'℃'}  @$temps;
 
-    print $STATFILE "$date - ".join(" & ",@tempPrintables)." - warming=$warming\n";
+    print $STATFILE "$date - ".join(" & ",@$temps).", warm=$warming, state=$stateName\n";
 
     return $self;
 }

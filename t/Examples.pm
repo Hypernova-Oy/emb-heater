@@ -30,6 +30,7 @@ use Heater;
 
 sub getDefaultConf {
     return {
+        MainLoopInterval => 100, #in milliseconds
         SwitchOnRelayBCMPin => 24,
         SwitchOffRelayBCMPin => 25,
         ActivationTemperature => -20,
@@ -51,7 +52,7 @@ sub getHeater {
 
 sub getStatisticalConf {
     my $conf = getDefaultConf();
-    $conf->{StatisticsWriteInterval} = 300;
+    $conf->{StatisticsWriteInterval} = 1; #in seconds
     $conf->{StatisticsLogFile} = ''; #this cannot be empty. Create a path before starting the daemon
     return $conf;
 }
@@ -64,6 +65,7 @@ sub getDaemonizingCommand {
             '--off',$conf->{SwitchOffRelayBCMPin},
             '-s',   $conf->{StatisticsWriteInterval},
             '-sf',  $conf->{StatisticsLogFile},
+            '--ml', $conf->{MainLoopInterval},
         );
 }
 

@@ -72,8 +72,8 @@ sub new {
     Heater::Pid::checkPid($self);
 
     $self->{warmerRelay} = GPIO::Relay::DoubleLatch->new(
-        $self->{SwitchOnRelayBCMPin},
-        $self->{SwitchOffRelayBCMPin}
+        Heater::Config::getSwitchOnRelayBCMPin($self),
+        Heater::Config::getSwitchOffRelayBCMPin($self),
     );
 
     $self->{tempSensors} = []; #Prepare to load temp sensors to this data structure
@@ -152,7 +152,7 @@ sub mainLoop {
 
     $self->enforceState();
 
-    $self->s()->writeStatistics();
+    $self->s()->writeStatistics() if $self->_isTimeToWriteStatistics();
 }
 
 =head2 enforceState
@@ -167,7 +167,7 @@ sub enforceState {
     $self->state->tick;
 }
 
-=head2 _getMainLoopSleepDuration
+=head3 _getMainLoopSleepDuration
 
 @RETURNS Int microseconds
 
@@ -175,15 +175,37 @@ sub enforceState {
 
 sub _getMainLoopSleepDuration {
     my ($self) = @_;
-    if ($self->{StatisticsWriteInterval}) {
-        return $self->{StatisticsWriteInterval}*1000;
+    return Heater::Config::getMainLoopInterval($self)*1000;
+}
+
+=head3 _isTimeToWriteStatistics
+
+Checks if StatisticsWriteInterval-amount of seconds has passed since the last time
+statistics were written.
+
+@RETURNS Boolean, true if now is time to write statistics
+
+=cut
+
+sub _isTimeToWriteStatistics {
+    my ($self) = @_;
+    unless ($self->{_statsWrittenTime}) {
+        $self->{_statsWrittenTime} = time unless $self->{_statsWrittenTime};
+        $l->debug("Initialized the time statistics were last written");
     }
-    return 5000*1000;
+
+    my $timeToWriteStatistics = $self->{_statsWrittenTime} + Heater::Config::getStatisticsWriteInterval($self) - time;
+    $l->trace("\$timeToWriteStatistics => '$timeToWriteStatistics'");
+    if ($timeToWriteStatistics <= 0) {
+        $self->{_statsWrittenTime} = time;
+        return 1;
+    }
+    return 0;
 }
 
 sub turnWarmingOn {
     my ($self) = @_;
-    $l->info("Turning warming on");
+    $l->info("Turning warming on using BCM pin '".Heater::Config::getSwitchOnRelayBCMPin($self)."'");
     $self->{warmerRelay}->switchOn() if (not($ENV{HEATER_TEST_MODE}));
     $self->{warmingIsOn} = 1;
     return $self;
@@ -191,7 +213,7 @@ sub turnWarmingOn {
 
 sub turnWarmingOff {
     my ($self) = @_;
-    $l->info("Turning warming off");
+    $l->info("Turning warming off using BCM pin '".Heater::Config::getSwitchOffRelayBCMPin($self)."'");
     $self->{warmerRelay}->switchOff() if (not($ENV{HEATER_TEST_MODE}));
     $self->{warmingIsOn} = 0;
     return $self;
@@ -228,7 +250,7 @@ sub temperatures {
     @$temps = map {$_.'℃'}  @$temps if $withQuantum;
 
     unless (scalar(@$sensors) == $_[0]->{TemperatureSensorsCount}) {
-        Heater::Exception::Hardware->throw(error => "Expected to have '".$_[0]->{TemperatureSensorsCount}."' temperature sensors, but found only '".scalar(@$sensors)."'");
+        Heater::Exception::Hardware->throw(error => "Expected to have '".Heater::Config::getTemperatureSensorsCount($self)."' temperature sensors, but found only '".scalar(@$sensors)."'");
     }
 
     return $temps;
@@ -249,7 +271,7 @@ sub _addTemperatureSensor {
     push ( @{$self->{tempSensors}},
         HiPi::Interface::DS18X20->new(
             id         => $id,
-            correction => $self->{TemperatureCorrection},
+            correction => Heater::Config::getTemperatureCorrection($self),
             divider    => 1000,
         )
     );
@@ -318,6 +340,7 @@ sub setState {
             name => $stateName,
             startingTemps => $self->temperatures(),
         });
+        $self->s()->writeStatistics(); #Write statistics to show the state has transitioned.
     }
 }
 

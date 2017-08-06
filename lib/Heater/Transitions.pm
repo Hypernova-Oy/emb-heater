@@ -59,6 +59,7 @@ sub nextStateTransition {
     if ($currentState eq $Heater::STATE_EMERGENCY_SHUTDOWN) {
         if (_reachedEmergencyPassedTemp($h)) {
             $newState = $Heater::STATE_IDLE;
+            $l->warn("Emergency shutdown passed");
         }
         else {
             $newState = 0; #Only way to transition away from the emergency shutdown is via _reachedEmergencyPassedTemp()
@@ -67,6 +68,7 @@ sub nextStateTransition {
 
     elsif (_reachedEmergencyShutdownTemp($h)) {
         $newState = $Heater::STATE_EMERGENCY_SHUTDOWN;
+        $l->warn("Emergency shutdown activated");
     }
     elsif (_reachedTargetTemp($h)) {
         $newState = $Heater::STATE_IDLE;

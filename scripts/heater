@@ -15,7 +15,7 @@ use Heater::Config;
 my $help;
 my $verbose = 0;
 my ($onPin,$offPin,$statisticsWriteInterval,$statisticsFile,
-    $activationTemp, $targetTemp, $tempCorrection);
+    $activationTemp, $targetTemp, $tempCorrection, $mainLoopInterval);
 
 
 GetOptions(
@@ -28,6 +28,7 @@ GetOptions(
     'at:f'                        => \$activationTemp,
     'tt:f'                        => \$targetTemp,
     'tc:f'                        => \$tempCorrection,
+    'ml:f'                        => \$mainLoopInterval,
 );
 
 my $usage = <<USAGE;
@@ -64,6 +65,8 @@ Set configs at /etc/emb-heater/daemon.conf
   --tc                Temperature correction in degrees Celsius.
                       Default -0.1
 
+  --ml                MainLoopInterval. Float. This is useful for running tests. Don't change it.
+
 SIGNALS:
 
 Heater listens to some IPC signals you can use to get information about the running process
@@ -87,7 +90,7 @@ if ($help) {
 my $conf = Heater::Config::makeConfig(
               $onPin,$offPin,$activationTemp,$targetTemp,$tempCorrection,
               $statisticsWriteInterval,$statisticsFile, undef, undef, undef, undef,
-              $verbose,
+              $verbose, $mainLoopInterval,
 );
 my $heater = Heater->new($conf);
 
