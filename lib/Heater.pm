@@ -27,6 +27,7 @@ binmode STDOUT, ':encoding(UTF-8)';
 binmode STDERR, ':encoding(UTF-8)';
 use Try::Tiny;
 use Scalar::Util qw(blessed);
+use Storable;
 
 use Config::Simple;
 use HiPi::Interface::DS18X20;
@@ -290,7 +291,8 @@ So we cache the result to avoid unnecessary communication.
 
 sub cacheTemperaturesReading {
     my ($self, $readings) = @_;
-    $self->{_tempCache} = [Time::HiRes::time*1000, $readings]; #Caching time in millis
+    my $deepCopy = Storable::dclone($readings); #Make a deep copy, to separate dependencies between other program modules requiring the cached object.
+    $self->{_tempCache} = [Time::HiRes::time*1000, $deepCopy]; #Caching time in millis
     $l->trace("Cached temperature readings '@$readings'");
 }
 
@@ -320,7 +322,7 @@ sub getCachedTemperaturesReading {
             $self->flushTemperaturesCache();
             return undef;
         }
-        return $c->[1];
+        return Storable::dclone($c->[1]);
     }
     else {
         $l->trace("Temperature cache miss");

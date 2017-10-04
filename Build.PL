@@ -25,6 +25,7 @@ my $build = Module::Build->new(
         'File::Temp'               => '> 0.01',
         'Exception::Class'         => '> 0.01',
         'Try::Catch'               => '> 0.01',
+        'Storable'                 => '> 0.01',
     },
 
 );
