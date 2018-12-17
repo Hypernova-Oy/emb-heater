@@ -76,7 +76,7 @@ sub _mergeConfig {
 
 sub _slurpConfig {
     my $c = new Config::Simple($configFile)
-        || exitWithError(Config::Simple->error());
+        || die(Config::Simple->error());
     $c = $c->vars();
     my %c;
     while (my ($k,$v) = each(%$c)) {

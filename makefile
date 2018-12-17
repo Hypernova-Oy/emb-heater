@@ -29,8 +29,8 @@ test:
 
 configure:
 	mkdir -p /$(confDir)
-	cp $(confDir)/daemon.conf /$(confDir)/daemon.conf
-	cp $(confDir)/log4perl.conf /$(confDir)/log4perl.conf
+	cp --backup=numbered $(confDir)/daemon.conf /$(confDir)/daemon.conf
+	cp --backup=numbered $(confDir)/log4perl.conf /$(confDir)/log4perl.conf
 
 	cp $(systemdServiceDir)/$(programName).service /$(systemdServiceDir)/$(programName).service
 
