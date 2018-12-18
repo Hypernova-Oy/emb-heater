@@ -50,7 +50,7 @@ sub monitorStatistics {
     like($statsRow, qr/(\s+[+-]\d+\.\d+\s*\xE2\x84\x83\s*&?)+, warm=\d, state=\w$/u, "Temperature statistics has a sane temperature reading");
   };
 
-  sleep 3; #Sleep a bit for the daemon to generate more statistics rows.
+  sleep 4; #Sleep a bit for the daemon to generate more statistics rows.
   $tempFile->seek(0,0); #rewind the pointer
   @lines = $tempFile->getlines(); #Get all lines in the temporary statistics file
   ok(scalar(@lines), "We got '".scalar(@lines)."' temperature readings already!");

@@ -37,7 +37,7 @@ configure:
 	mkdir -p $(logPath)
 
 	grep 'dtoverlay=w1-gpio' /boot/config.txt || \
-	( echo "dtoverlay=w1-gpio,gpiopin=23,pullup=on" >> /boot/config.txt && echo "" && echo "" && echo "1 Wire device activated in /boot/config.txt" && echo "You must reboot for changes to take effect" && echo "" && echo "" )
+	( echo "dtoverlay=w1-gpio,gpiopin=4,pullup=on" >> /boot/config.txt && echo "" && echo "" && echo "1 Wire device activated in /boot/config.txt" && echo "You must reboot for changes to take effect" && echo "" && echo "" )
 
 unconfigure:
 	rm -r /$(confDir) || $(RC)

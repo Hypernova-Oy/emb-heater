@@ -63,6 +63,14 @@ sub writeStatistics {
     $l->trace("Writing statistics") if $l->is_trace();
     my $STATFILE = $self->{STATFILE};
 
+    print $STATFILE $self->_getStatisticsString();
+
+    return $self;
+}
+
+sub _getStatisticsString {
+    my ($self) = @_;
+
     my $date = DateTime->now(time_zone => $ENV{TZ})->iso8601();
     my $warming = $self->h()->isWarming() ? 1 : 0;
     my $temps = $self->h()->temperatures();
@@ -70,9 +78,7 @@ sub writeStatistics {
 
     @$temps = map {sprintf("\%-+#${tempReadingColWidth}.3f",$_).'℃'}  @$temps;
 
-    print $STATFILE "$date - ".join(" & ",@$temps).", warm=$warming, state=$stateName\n";
-
-    return $self;
+    return "$date - ".join(" & ",@$temps).", warm=$warming, state=$stateName\n";
 }
 
 1;

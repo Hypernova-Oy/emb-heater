@@ -13,7 +13,7 @@ use Heater;
 use Heater::Exception;
 
 $ENV{HEATER_TEST_MODE} = 1;
-$ENV{HEATER_LOG_LEVEL} = 'TRACE'; #Full logging to stdout
+$ENV{HEATER_LOG_LEVEL} = 'WARN'; #Full logging to stdout
 our $TEST_SENSORS;
 
 ### Mock Heater::Statistics to write to a variable instead of a file

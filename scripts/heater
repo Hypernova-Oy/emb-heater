@@ -15,7 +15,8 @@ use Heater::Config;
 my $help;
 my $verbose = 0;
 my ($onPin,$offPin,$statisticsWriteInterval,$statisticsFile,
-    $activationTemp, $targetTemp, $tempCorrection, $mainLoopInterval);
+    $activationTemp, $targetTemp, $tempCorrection, $mainLoopInterval,
+    $turnOn, $turnOff, $checkTemperature);
 
 
 GetOptions(
@@ -29,6 +30,9 @@ GetOptions(
     'tt:f'                        => \$targetTemp,
     'tc:f'                        => \$tempCorrection,
     'ml:f'                        => \$mainLoopInterval,
+    'turnOn'                      => \$turnOn,
+    'turnOff'                     => \$turnOff,
+    'temperature'                 => \$checkTemperature,
 );
 
 my $usage = <<USAGE;
@@ -67,6 +71,12 @@ Set configs at /etc/emb-heater/daemon.conf
 
   --ml                MainLoopInterval. Float. This is useful for running tests. Don't change it.
 
+  --turnOn            Simply turns the heater relay on.
+
+  --turnOff           Simply turns the heater relay off.
+
+  --temperature       Simply checks the temperature.
+
 SIGNALS:
 
 Heater listens to some IPC signals you can use to get information about the running process
@@ -92,7 +102,7 @@ my $conf = Heater::Config::makeConfig(
               $statisticsWriteInterval,$statisticsFile, undef, undef, undef, undef,
               $verbose, $mainLoopInterval,
 );
-my $heater = Heater->new($conf);
+my $heater; #Instantiating the heater has side-effects, so postpone it until absolutely necessary.
 
 ##Introduce signal handlers
 sub gracefullyTerminate {
@@ -113,4 +123,34 @@ $SIG{INT} = sub {
   gracefullyTerminate($_[0]);
 };
 
-$heater->start();
+
+
+if ($checkTemperature) {
+  my @tempSensorDevices = HiPi::Interface::DS18X20->list_slaves();
+  Heater::Exception::Hardware::TemperatureSensor->throw(error => "No DS18X20-compatible temperature sensors detected on the one wire bus. Have you enabled the one-wire hardware device?")
+    unless scalar(@tempSensorDevices);
+
+  foreach my $device (@tempSensorDevices) {
+    my $ds = HiPi::Interface::DS18X20->new(
+      id         => $device->{id},
+      correction => $conf->{TemperatureCorrection},
+      divider    => 1000,
+    );
+    print $ds->temperature()."\n";
+  }
+  exit(0);
+}
+
+
+# We need to have the heater instantiated from now on.
+$heater = Heater->new($conf);
+
+if ($turnOn) {
+  $heater->turnWarmingOn();
+}
+elsif ($turnOff) {
+  $heater->turnWarmingOff();
+}
+else {
+  $heater->start();
+}
