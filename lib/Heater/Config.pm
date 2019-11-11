@@ -105,22 +105,22 @@ my $unsigned_int_regexp = '\d+';
 sub _isConfigValid() {
     my ($c) = @_;
 
-    unless ($c->{MainLoopInterval} && $c->{MainLoopInterval} =~ /^$signed_float_regexp$/) {
+    unless (defined($c->{MainLoopInterval}) && $c->{MainLoopInterval} =~ /^$signed_float_regexp$/) {
         die("MainLoopInterval is not a valid signed float");
     }
-    unless ($c->{ActivationTemperature} && $c->{ActivationTemperature} =~ /^$signed_float_regexp$/) {
+    unless (defined($c->{ActivationTemperature}) && $c->{ActivationTemperature} =~ /^$signed_float_regexp$/) {
         die("ActivationTemperature is not a valid signed float");
     }
-    unless ($c->{TargetTemperature} && $c->{TargetTemperature} =~ /^$signed_float_regexp$/) {
+    unless (defined($c->{TargetTemperature}) && $c->{TargetTemperature} =~ /^$signed_float_regexp$/) {
         die("TargetTemperature is not a valid signed float");
     }
-    unless ($c->{TemperatureCorrection} && $c->{TemperatureCorrection} =~ /^$signed_int_regexp$/) {
+    unless (defined($c->{TemperatureCorrection}) && $c->{TemperatureCorrection} =~ /^$signed_int_regexp$/) {
         die("TemperatureCorrection is not a valid signed int");
     }
-    unless ($c->{SwitchOnRelayBCMPin} && $c->{SwitchOnRelayBCMPin} =~ /^$unsigned_int_regexp$/) {
+    unless (defined($c->{SwitchOnRelayBCMPin}) && $c->{SwitchOnRelayBCMPin} =~ /^$unsigned_int_regexp$/) {
         die("SwitchOnRelayBCMPin is not a valid unsigned int");
     }
-    unless ($c->{SwitchOffRelayBCMPin} && $c->{SwitchOffRelayBCMPin} =~ /^$unsigned_int_regexp$/) {
+    unless (defined($c->{SwitchOffRelayBCMPin}) && $c->{SwitchOffRelayBCMPin} =~ /^$unsigned_int_regexp$/) {
         die("SwitchOffRelayBCMPin is not a valid unsigned int");
     }
     unless ($c->{StatisticsWriteInterval} &&
@@ -135,19 +135,19 @@ sub _isConfigValid() {
             die("StatisticsLogFile must be a valid path if StatisticsWriteInterval is defined");
         }
     }
-    unless ($c->{EmergencyShutdownTemperature} && $c->{EmergencyShutdownTemperature} =~ /^$signed_int_regexp$/) {
+    unless (defined($c->{EmergencyShutdownTemperature}) && $c->{EmergencyShutdownTemperature} =~ /^$signed_int_regexp$/) {
         die("EmergencyShutdownTemperature is not a valid signed int");
     }
     if ($c->{EmergencyShutdownTemperature} > 85) {
         die("EmergencyShutdownTemperature is more than the allowed safe limit of 85 degrees celsius");
     }
-    unless ($c->{EmergencyPassedTemperature} && $c->{EmergencyPassedTemperature} =~ /^$signed_int_regexp$/) {
+    unless (defined($c->{EmergencyPassedTemperature}) && $c->{EmergencyPassedTemperature} =~ /^$signed_int_regexp$/) {
         die("EmergencyPassedTemperature is not a valid signed int");
     }
-    unless ($c->{TemperatureSensorsCount} && $c->{TemperatureSensorsCount} =~ /^$unsigned_int_regexp$/) {
+    unless (defined($c->{TemperatureSensorsCount}) && $c->{TemperatureSensorsCount} =~ /^$unsigned_int_regexp$/) {
         die("TemperatureSensorsCount is not a valid unsigned int");
     }
-    unless ($c->{MinimumHeatingEfficiency} && $c->{MinimumHeatingEfficiency} =~ /^$unsigned_int_regexp$/) {
+    unless (defined($c->{MinimumHeatingEfficiency}) && $c->{MinimumHeatingEfficiency} =~ /^$unsigned_int_regexp$/) {
         die("MinimumHeatingEfficiency is not a valid unsigned int");
     }
 
