@@ -31,15 +31,15 @@ use Heater;
 sub getDefaultConf {
     return {
         MainLoopInterval => 100, #in milliseconds
-        SwitchOnRelayBCMPin => 24,
-        SwitchOffRelayBCMPin => 25,
+        SwitchOnRelayBCMPin => 17,
+        SwitchOffRelayBCMPin => 27,
         ActivationTemperature => -20,
         TargetTemperature => -17,
         TemperatureCorrection => 100,
         StatisticsWriteInterval => 1,
         EmergencyShutdownTemperature => 85,
         EmergencyPassedTemperature => 70,
-        TemperatureSensorsCount => 2,
+        TemperatureSensorsCount => 1,
         Verbose                 => -4, #Hide all log output
     };
 }
