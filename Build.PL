@@ -23,6 +23,7 @@ my $build = Module::Build->new(
         'Params::Validate'         => '> 0.01',
         'Proc::PID::File'          => '> 0.01',
         'File::Temp'               => '> 0.01',
+        'JSON::XS'                 => '> 0.01',
         'Exception::Class'         => '> 0.01',
         'Try::Catch'               => '> 0.01',
         'Storable'                 => '> 0.01',
