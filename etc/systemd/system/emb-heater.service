@@ -6,7 +6,8 @@ Type=idle
 User=root
 ExecStart=/usr/local/bin/heater
 
-RestartSec=5s
+#Monitoring agents can better detect the failed states, when they typically poll every minute.
+RestartSec=60s
 Restart=always
 
 PrivateTmp=yes
