@@ -80,7 +80,7 @@ sub new {
     $self->{tempSensors} = []; #Prepare to load temp sensors to this data structure
 
     my @tempSensorDevices = HiPi::Interface::DS18X20->list_slaves();
-    Heater::Exception::Hardware::TemperatureSensor->throw(error => "No DS18X20-compatible temperature sensors detected on the one wire bus. Have you enabled the one-wire hardware device?")
+    $l->logdie(Heater::Exception::toText(Heater::Exception::Hardware::TemperatureSensor->throw(error => "No DS18X20-compatible temperature sensors detected on the one wire bus. Have you enabled the one-wire hardware device?")))
         unless scalar(@tempSensorDevices);
 
     foreach my $device (@tempSensorDevices) {
